@@ -19,7 +19,25 @@
 #include "ucan.h"
 
 /* ----- Definitions --------------------------------------------------------*/
-#define TX_ID 0x123 // CAN ID to send from
+#define CAN_ID_STAT_REQL 0x110 // request status left conveyor belt 
+#define CAN_ID_STAT_REQM 0x120 // request status middle conveyor belt
+#define CAN_ID_STAT_REQR 0x130 // request status right conveyor belt
+
+#define CAN_ID_STAT_ANSWL 0x111 // status answer left conveyor belt
+#define CAN_ID_STAT_ANSWM 0x121 // status answer middle conveyor belt
+#define CAN_ID_STAT_ANSWR 0x131 // status answer right conveyor belt
+
+#define CAN_ID_CMDL 0x112 // send command to left conveyor belt
+#define CAN_ID_CMDM 0x122 // send command to middle conveyor belt
+#define CAN_ID_CMDR 0x132 // send command to right conveyor belt
+
+#define CAN_ID_CMD_ANSWL 0x113 // command answer left conveyor belt
+#define CAN_ID_CMD_ANSWM 0x123 // command answer middle conveyor belt
+#define CAN_ID_CMD_ANSWR 0x133 // command answer right conveyor belt
+
+#define CAN_ID_RESL 0x11F // reset left conveyor belt
+#define CAN_ID_RESM 0x12F // reset middle conveyor belt
+#define CAN_ID_RESR 0x13F // reset right conveyor belt
 
 /* ----- Globals ------------------------------------------------------------*/
 CARME_CAN_MESSAGE rx_msg;
@@ -27,6 +45,7 @@ CARME_CAN_MESSAGE tx_msg;
 
 /* ----- Prototypes ---------------------------------------------------------*/
 static void setup_acceptance_filter();
+static void recieve_data();
 bool init_can(void);
 
 
