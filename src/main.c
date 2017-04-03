@@ -18,12 +18,13 @@
 #define PRIORITY_TASK         ( 2 ) //  low priority number denotes low priority task
 
 
-static void vAppTask(void *pvData) {
-        uint8_t i = 0;
-        while(1) {
-            display_log(DISPLAY_NEWLINE,"test %u",i++);
-            vTaskDelay(100);
-        }
+static void vAppTask(void *pvData)
+{
+    uint8_t i = 0;
+    while(1) {
+        display_log(DISPLAY_NEWLINE,"test %u",i++);
+        vTaskDelay(100);
+    }
 }
 
 
@@ -40,16 +41,16 @@ int  main(void)
     display_init();
 
     xTaskCreate(vAppTask,
-                    "Taskx",
-                    STACKSIZE_TASK,
-                    NULL,
-                    PRIORITY_TASK,
-                    NULL);
+                "Taskx",
+                STACKSIZE_TASK,
+                NULL,
+                PRIORITY_TASK,
+                NULL);
 
 
 
 
-   vTaskStartScheduler();
+    vTaskStartScheduler();
 
     for (;;) {
         // All work and no play makes jack a dull boy

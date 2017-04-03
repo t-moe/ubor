@@ -51,7 +51,7 @@ uint8_t display_log(uint8_t id, const char *fmtstr, ...)
             last_given_id = 0;
         }
     } else {
-       newId = id;
+        newId = id;
     }
     //Todo: mutex release
 
@@ -64,7 +64,8 @@ uint8_t display_log(uint8_t id, const char *fmtstr, ...)
 }
 
 
-void display_print_message(uint8_t line, message_t* msg) {
+void display_print_message(uint8_t line, message_t* msg)
+{
     uint8_t x=0;
 
     //Print task name in gray
@@ -100,9 +101,9 @@ void display_task()
 
     while(true) {
         if(visible_messages == DISPLAY_LINES) {
-           // static message_t tmp_message;
-           // xQueueReceive(display_queue,&tmp_message,portMAX_DELAY);
-           // uint8_t top_id;
+            // static message_t tmp_message;
+            // xQueueReceive(display_queue,&tmp_message,portMAX_DELAY);
+            // uint8_t top_id;
 
             xQueueReceive(display_queue,&message_buffer[buffer_offset],portMAX_DELAY);
             buffer_offset = (buffer_offset +1) % DISPLAY_LINES;
@@ -122,15 +123,16 @@ void display_task()
 
 
 
-void display_init() {
+void display_init()
+{
     LCD_Init();
     LCD_Clear(GUI_COLOR_BLACK);
     xTaskCreate(display_task,
-                    "Display Task",
-                    STACKSIZE_TASK,
-                    NULL,
-                    PRIORITY_TASK,
-                    NULL);
+                "Display Task",
+                STACKSIZE_TASK,
+                NULL,
+                PRIORITY_TASK,
+                NULL);
 
     display_queue =  xQueueCreate(QUEUE_SIZE,sizeof(message_t));
 

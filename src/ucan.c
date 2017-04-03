@@ -45,7 +45,7 @@ CARME_CAN_MESSAGE tx_msg;
 
 /* ----- Prototypes ---------------------------------------------------------*/
 static void setup_acceptance_filter();
-static void recieve_data();
+static bool receive_data();
 bool init_can(void);
 
 
@@ -114,15 +114,15 @@ bool init_can(void)
 }
 
 /* Send data via can */
-bool send_data(uint8_t rx_id, uint8_t data)
+bool send_data(uint8_t msg_id, uint8_t data)
 {
     /* Setup basic CAN message header */
-    tx_msg.id = TX_ID; // Your ID
+    tx_msg.id = msg_id; // Your ID
     tx_msg.rtr = 0; // Something weird
     tx_msg.ext = 0; // Something weird
     tx_msg.dlc = 1; // Send 1byte
 }
 
-bool recieve_data()
+bool receive_data()
 {
 }
