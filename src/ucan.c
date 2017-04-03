@@ -87,18 +87,32 @@ static CARME_CAN_MESSAGE rx_msg;
 static CARME_CAN_MESSAGE tx_msg;
 
 static QueueHandle_t can_tx_queue;
+static QueueHandle_t can_rx_queue;
+
 static msg_link_t message_map[SIZE_MAP];
 static uint16_t n_message_map;
 
 /* ----- Functions -----------------------------------------------------------*/
 
 /* TASK: Write data from message queue to bus */
-static void ucan_write_data()
+static void ucan_write_data(void)
 {
     while(true) {
         xQueueReceive(can_tx_queue, &tx_msg, portMAX_DELAY); // get latest message from queue
         CARME_CAN_Write(&tx_msg); // Send message to CAN BUS
         display_log(DISPLAY_NEWLINE, "Sent msg_id 0x%03x to can", tx_msg.id); // Log message to display
+    }
+}
+
+
+/* TASK: Get can messages and send them to the according message queue */
+static void ucan_read_data(void)
+{
+    while(true) {
+        if (CARME_CAN_Read(&rx_msg) == CARME_NO_ERROR) {
+            xQueueSend(can_rx_queue, &rx_msg, portMAX_DELAY);
+            display_log(DISPLAY_NEWLINE, "Got msg_id 0x%03x", tx_msg.id); // Log message to display
+        }
     }
 }
 
@@ -110,7 +124,7 @@ static void ucan_setup_acceptance_filter(void)
     /* set the SJA1000 chip in running mode */
     CARME_CAN_SetMode(CARME_CAN_DF_RESET);
 
-    af.afm = MODE_SINGLE;   //Single filter */
+    af.afm = MODE_SINGLE;   //Single filter
 
     /* Unmask the important bits by setting them to Zero */
     af.amr[0] = 0x00;       // unmask bit 0 - 7
@@ -166,18 +180,19 @@ bool ucan_init(void)
     /* Setup acceptance filter */
     ucan_setup_acceptance_filter();
 
-    /* Clear the rx CAN message */
+    /* Clear the rx and tx CAN message */
     for(int i = 0; i < 7; i++) {
         rx_msg.data[i] = 0;
-    }
-
-    /* Clear the tx CAN message */
-    for(int i = 0; i < 7; i++) {
         tx_msg.data[i] = 0;
     }
 
-    can_tx_queue = xQueueCreate(QUEUE_SIZE, sizeof(tx_msg)); // Create message queue for can bus
-    xTaskCreate(ucan_write_data, "CANWriteTask", STACKSIZE_TASK, NULL, PRIORITY_TASK, NULL);
+    /* Create message queues for can communication */
+    can_tx_queue = xQueueCreate(QUEUE_SIZE, sizeof(tx_msg));
+    can_rx_queue = xQueueCreate(QUEUE_SIZE, sizeof(tx_msg));
+
+    /* Spawn tasks */
+    xTaskCreate(ucan_write_data, "CAN_Write_Task", STACKSIZE_TASK, NULL, PRIORITY_TASK, NULL);
+    xTaskCreate(ucan_read_data, "CAN_Read_Task", STACKSIZE_TASK, NULL, PRIORITY_TASK, NULL);
 
     return true;
 }
@@ -201,12 +216,10 @@ bool ucan_send_data(uint8_t n_data_bytes, uint16_t msg_id, const uint8_t *data)
     return true;
 }
 
-/* Get can messages and send them to the according message queue */
-bool ucan_receive_data(void)
+/* Reads incomming can messages from the rx_queue and forwards them according to the queue map */
+bool ucan_receive_data()
 {
-    if (CARME_CAN_Read(&rx_msg) == CARME_NO_ERROR) {
-        // Todo: Choose message queue
-    }
-
+    // Choose the correct message queue ...
     return true;
 }
+
