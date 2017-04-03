@@ -38,3 +38,5 @@
 
 # Build folder
 build
+ubor*
+*.orig

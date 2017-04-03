@@ -17,8 +17,7 @@ case "$1" in
             exit 0    
         fi
         echo -e "[\033[32m:)\033[m] Starting st-util."
-        #/bin/st-util > /dev/null 2>&1 &
-        /usr/local/bin/st-util > /dev/null 2>&1 &
+        st-util > /dev/null 2>&1 &
         echo $! > /tmp/st-util.pid
     ;;
     "stop")
