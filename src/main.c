@@ -2,6 +2,7 @@
 #include <stdio.h>                      /* Standard Input/Output              */
 #include <FreeRTOS.h>                   /* All freeRTOS headers               */
 
+#include "ucan.h"
 //----- Macros -----------------------------------------------------------------
 //----- Data types -------------------------------------------------------------
 //----- Function prototypes ----------------------------------------------------
@@ -18,11 +19,12 @@
  *  \return       error code
  *
  ******************************************************************************/
-int  main(void) {
+int  main(void)
+{
 
     for (;;) {
         // All work and no play makes jack a dull boy
     }
-    
+
     return 0;
 }

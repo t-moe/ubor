@@ -64,7 +64,8 @@ extern void TimingDelay_Decrement(void);
  * @return		None
  *****************************************************************************
  */
-void NMI_Handler(void) {
+void NMI_Handler(void)
+{
 }
 
 /**
@@ -74,9 +75,10 @@ void NMI_Handler(void) {
  * @return		None
  *****************************************************************************
  */
-void HardFault_Handler(void) {
-	/* Go to infinite loop when Hard Fault exception occurs */
-	Default_Handler();
+void HardFault_Handler(void)
+{
+    /* Go to infinite loop when Hard Fault exception occurs */
+    Default_Handler();
 }
 
 /**
@@ -86,10 +88,11 @@ void HardFault_Handler(void) {
  * @return		None
  *****************************************************************************
  */
-void MemManage_Handler(void) {
-	/* Go to infinite loop when Memory Manage exception occurs */
-	while (1) {
-	}
+void MemManage_Handler(void)
+{
+    /* Go to infinite loop when Memory Manage exception occurs */
+    while (1) {
+    }
 }
 
 /**
@@ -99,9 +102,10 @@ void MemManage_Handler(void) {
  * @return		None
  *****************************************************************************
  */
-void BusFault_Handler(void) {
-	/* Go to infinite loop when Bus Fault exception occurs */
-	Default_Handler();
+void BusFault_Handler(void)
+{
+    /* Go to infinite loop when Bus Fault exception occurs */
+    Default_Handler();
 }
 
 /**
@@ -111,9 +115,10 @@ void BusFault_Handler(void) {
  * @return		None
  *****************************************************************************
  */
-void UsageFault_Handler(void) {
-	/* Go to infinite loop when Usage Fault exception occurs */
-	Default_Handler();
+void UsageFault_Handler(void)
+{
+    /* Go to infinite loop when Usage Fault exception occurs */
+    Default_Handler();
 }
 
 /**
@@ -123,7 +128,8 @@ void UsageFault_Handler(void) {
  * @return		None
  *****************************************************************************
  */
-void DebugMon_Handler(void) {
+void DebugMon_Handler(void)
+{
 }
 
 /**
@@ -133,12 +139,13 @@ void DebugMon_Handler(void) {
  * @return		None
  *****************************************************************************
  */
-void EXTI9_5_IRQHandler(void) {
+void EXTI9_5_IRQHandler(void)
+{
 
-	if (EXTI_GetITStatus(CARME_GPIO_TO_EXTILINE(GPIO_Pin_8)) != RESET) {
-		CARME_CAN_Interrupt_Handler();
-		EXTI_ClearITPendingBit(CARME_GPIO_TO_EXTILINE(GPIO_Pin_8));
-	}
+    if (EXTI_GetITStatus(CARME_GPIO_TO_EXTILINE(GPIO_Pin_8)) != RESET) {
+        CARME_CAN_Interrupt_Handler();
+        EXTI_ClearITPendingBit(CARME_GPIO_TO_EXTILINE(GPIO_Pin_8));
+    }
 }
 
 #ifdef __cplusplus
