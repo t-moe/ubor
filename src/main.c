@@ -22,7 +22,14 @@ static void vAppTask(void *pvData)
 {
     uint8_t i = 0;
     while(1) {
-        display_log(DISPLAY_NEWLINE,"test %u",i++);
+        uint8_t id =  display_log(DISPLAY_NEWLINE,"test %u",i++);
+        vTaskDelay(100);
+        uint8_t id2 = display_log(DISPLAY_NEWLINE,"test %u",i++);
+        vTaskDelay(200);
+
+        display_log(id,"test updated %u",i);
+        vTaskDelay(100);
+        display_log(id2,"test updated %u",i);
         vTaskDelay(100);
     }
 }
