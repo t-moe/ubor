@@ -20,6 +20,8 @@
 
 /* ----- Definitions --------------------------------------------------------*/
 
+#define SIZE_MAP 100 // the size of the message link hashmap
+
 /* CAN status request message id's for the conveyor belt system*/
 #define CAN_ID_CONVL_STAT_REQ 0x110 // request status left conveyor belt 
 #define CAN_ID_CONVM_STAT_REQ 0x120 // request status middle conveyor belt
@@ -72,18 +74,26 @@
 #define CAN_ID_ARML_RES 0x15F // reset left arm
 #define CAN_ID_ARMR_RES 0x16F // reset right arm
 
+/* ----- Datatypes -----------------------------------------------------------*/
+typedef struct msg_link_s {
+    QueueHandle_t queue;
+    uint16_t message_id;
+} msg_link_t;
+
 /* ----- Globals ------------------------------------------------------------*/
 static CARME_CAN_MESSAGE rx_msg;
 static CARME_CAN_MESSAGE tx_msg;
 
 static QueueHandle_t can_tx_queue;
+static msg_link_t message_map[SIZE_MAP];
+static uint16_t n_message_map;
 
 /* ----- Functions -----------------------------------------------------------*/
 
 /* TASK: Write data from message queue to bus */
 static void ucan_write_data()
 {
-    while(true){
+    while(true) {
         xQueueReceive(can_tx_queue, &tx_msg, portMAX_DELAY); // get latest message from queue
         CARME_CAN_Write(&tx_msg); // Send message to CAN BUS
     }
@@ -116,6 +126,20 @@ static void ucan_setup_acceptance_filter(void)
 
     /* Set the SJA1000 chip in running mode */
     CARME_CAN_SetMode(CARME_CAN_DF_NORMAL);
+}
+
+/* Link a message type to a queue */
+bool ucan_link_message_to_queue(uint16_t message_id, QueueHandle_t queue)
+{
+    /* Check if there is enough space left */
+    if(n_message_map > SIZE_MAP-1) {
+        return false;
+    }
+
+    message_map[n_message_map++].message_id = message_id;
+    message_map[n_message_map].queue = queue;
+
+    return true;
 }
 
 /* Initialize can hardware */
@@ -156,7 +180,7 @@ bool ucan_init(void)
 
 
 /* Send data to the output message queue */
-bool ucan_send_data(uint8_t n_data_bytes, uint8_t msg_id, const uint8_t *data)
+bool ucan_send_data(uint8_t n_data_bytes, uint16_t msg_id, const uint8_t *data)
 {
     CARME_CAN_MESSAGE tmp_msg;
 
@@ -169,6 +193,8 @@ bool ucan_send_data(uint8_t n_data_bytes, uint8_t msg_id, const uint8_t *data)
     memcpy(tmp_msg.data, data, min(n_data_bytes, 8)); // copy databytes to output buffer but only 8bytes
     display_log(DISPLAY_NEWLINE, "Stuffed can message into can_tx_queue."); // Log message to display
     xQueueSend(can_tx_queue, &tmp_msg, portMAX_DELAY); // Send message to the message queue
+
+    return true;
 }
 
 /* Get can messages and send them to the according message queue */
@@ -177,4 +203,6 @@ bool ucan_receive_data(void)
     if (CARME_CAN_Read(&rx_msg) == CARME_NO_ERROR) {
         // Todo: Choose message queue
     }
+
+    return true;
 }
