@@ -73,10 +73,21 @@
 #define CAN_ID_ARMR_RES 0x16F // reset right arm
 
 /* ----- Globals ------------------------------------------------------------*/
-CARME_CAN_MESSAGE rx_msg;
-CARME_CAN_MESSAGE tx_msg;
+static CARME_CAN_MESSAGE rx_msg;
+static CARME_CAN_MESSAGE tx_msg;
 
-/* ----- Functins -----------------------------------------------------------*/
+static QueueHandle_t can_tx_queue;
+
+/* ----- Functions -----------------------------------------------------------*/
+
+/* TASK: Write data from message queue to bus */
+static void ucan_write_data()
+{
+    while(true){
+        xQueueReceive(can_tx_queue, &tx_msg, portMAX_DELAY); // get latest message from queue
+        CARME_CAN_Write(&tx_msg); // Send message to CAN BUS
+    }
+}
 
 /* setup acceptance filter */
 static void ucan_setup_acceptance_filter(void)
@@ -138,25 +149,29 @@ bool ucan_init(void)
         tx_msg.data[i] = 0;
     }
 
+    can_tx_queue = xQueueCreate(QUEUE_SIZE, sizeof(tx_msg)); // Create message queue for can bus
+
     return true;
 }
 
-/* Send data via can */
+
+/* Send data to the output message queue */
 bool ucan_send_data(uint8_t n_data_bytes, uint8_t msg_id, const uint8_t *data)
 {
-    /* Setup basic CAN message header */
-    tx_msg.id = msg_id; // Message ID
-    tx_msg.rtr = 0; // Something weird
-    tx_msg.ext = 0; // Something weird
-    tx_msg.dlc = n_data_bytes; // Send n bytes
+    CARME_CAN_MESSAGE tmp_msg;
 
-    memcpy(tx_msg.data, data, min(n_data_bytes, 8)); // copy databytes to output buffer but only 8bytes
+    /* Setup basic CAN message header for temporary message */
+    tmp_msg.id = msg_id; // Message ID
+    tmp_msg.rtr = 0; // Something weird
+    tmp_msg.ext = 0; // Something weird
+    tmp_msg.dlc = n_data_bytes; // Number of bytes
 
-    display_log(DISPLAY_NEWLINE, "Test: "); // Log message to display
-    CARME_CAN_Write(&tx_msg); // Send message to CAN BUS
-
+    memcpy(tmp_msg.data, data, min(n_data_bytes, 8)); // copy databytes to output buffer but only 8bytes
+    display_log(DISPLAY_NEWLINE, "Stuffed can message into can_tx_queue."); // Log message to display
+    xQueueSend(can_tx_queue, &tmp_msg, portMAX_DELAY); // Send message to the message queue
 }
 
+/* Get can messages and send them to the according message queue */
 bool ucan_receive_data(void)
 {
     if (CARME_CAN_Read(&rx_msg) == CARME_NO_ERROR) {

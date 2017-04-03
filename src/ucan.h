@@ -10,10 +10,13 @@
 #include <carme.h>
 #include <can.h>
 #include <stm32f4xx.h>
+#include <FreeRTOS.h>
+#include <queue.h>
 
 #include "display.h"
 
-/*----- Macros ---------------------------------------------------------------*/
+/*----- Defines --------------------------------------------------------------*/
+#define QUEUE_SIZE 10
 
 /*----- Data types -----------------------------------------------------------*/
 
