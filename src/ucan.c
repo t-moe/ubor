@@ -20,7 +20,9 @@
 
 /* ----- Definitions --------------------------------------------------------*/
 
-#define SIZE_MAP 100 // the size of the message link hashmap
+#define SIZE_MAP 100 // the size of the message link map
+#define STACKSIZE_TASK 256 // Stacksize
+#define PRIORITY_TASK 2 // Priority
 
 /* CAN status request message id's for the conveyor belt system*/
 #define CAN_ID_CONVL_STAT_REQ 0x110 // request status left conveyor belt 
@@ -96,6 +98,7 @@ static void ucan_write_data()
     while(true) {
         xQueueReceive(can_tx_queue, &tx_msg, portMAX_DELAY); // get latest message from queue
         CARME_CAN_Write(&tx_msg); // Send message to CAN BUS
+        display_log(DISPLAY_NEWLINE, "Sent msg_id 0x%03x to can", tx_msg.id); // Log message to display
     }
 }
 
@@ -174,6 +177,7 @@ bool ucan_init(void)
     }
 
     can_tx_queue = xQueueCreate(QUEUE_SIZE, sizeof(tx_msg)); // Create message queue for can bus
+    xTaskCreate(ucan_write_data, "CANWriteTask", STACKSIZE_TASK, NULL, PRIORITY_TASK, NULL);
 
     return true;
 }
@@ -191,7 +195,7 @@ bool ucan_send_data(uint8_t n_data_bytes, uint16_t msg_id, const uint8_t *data)
     tmp_msg.dlc = n_data_bytes; // Number of bytes
 
     memcpy(tmp_msg.data, data, min(n_data_bytes, 8)); // copy databytes to output buffer but only 8bytes
-    display_log(DISPLAY_NEWLINE, "Stuffed can message into can_tx_queue."); // Log message to display
+    display_log(DISPLAY_NEWLINE, "Insert msg_id 0x%03x to queue", msg_id); // Log message to display
     xQueueSend(can_tx_queue, &tmp_msg, portMAX_DELAY); // Send message to the message queue
 
     return true;

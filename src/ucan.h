@@ -12,6 +12,7 @@
 #include <stm32f4xx.h>
 #include <FreeRTOS.h>
 #include <queue.h>
+#include <task.h>
 
 #include "display.h"
 
