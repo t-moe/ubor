@@ -19,7 +19,6 @@
 #include "ucan.h"
 
 /* ----- Definitions --------------------------------------------------------*/
-
 #define SIZE_MAP        100 // The size of the message link map
 #define QUEUE_SIZE      10  // Length of the data queues
 #define STACKSIZE_TASK  256 // Stacksize for new tasks
@@ -64,6 +63,19 @@ static void ucan_read_data(void *pv_data)
     }
 }
 
+/* Reads incomming can messages from the rx_queue and forwards them according to the queue map */
+static void ucan_dispatch_data(void *pv_data)
+{
+    CARME_CAN_MESSAGE tmp_msg;
+
+    while(true) {
+        xQueueReceive(can_rx_queue, &tmp_msg, portMAX_DELAY); // get a message from the rx queue
+        QueueHandle_t queue = get_queue_by_id(tmp_msg.id); // determine its queue
+        xQueueSend(queue, &tmp_msg, portMAX_DELAY); // forward it to the queue
+    }
+}
+
+
 /* setup acceptance filter */
 static void ucan_setup_acceptance_filter(void)
 {
@@ -91,6 +103,19 @@ static void ucan_setup_acceptance_filter(void)
 
     /* Set the SJA1000 chip in running mode */
     CARME_CAN_SetMode(CARME_CAN_DF_NORMAL);
+}
+
+/* Get the queue to sent the message to */
+QueueHandle_t get_queue_by_id(uint16_t message_id)
+{
+    /* search for the corresponding queue handle */
+    for(int i = 0; i==n_message_map; i++) {
+        if(message_map[i].message_id == message_id) {
+            return message_map[i].queue;
+        }
+    }
+
+    return NULL;
 }
 
 /* Link a message type to a queue */
@@ -141,6 +166,7 @@ bool ucan_init(void)
     /* Spawn tasks */
     xTaskCreate(ucan_write_data, "CAN_Write_Task", STACKSIZE_TASK, NULL, PRIORITY_TASK, NULL);
     xTaskCreate(ucan_read_data, "CAN_Read_Task", STACKSIZE_TASK, NULL, PRIORITY_TASK, NULL);
+    xTaskCreate(ucan_dispatch_data, "CAN_Dispatch_Task", STACKSIZE_TASK, NULL, PRIORITY_TASK, NULL);
 
     return true;
 }
@@ -163,11 +189,3 @@ bool ucan_send_data(uint8_t n_data_bytes, uint16_t msg_id, const uint8_t *data)
 
     return true;
 }
-
-/* Reads incomming can messages from the rx_queue and forwards them according to the queue map */
-bool ucan_receive_data()
-{
-    // Choose the correct message queue ...
-    return true;
-}
-

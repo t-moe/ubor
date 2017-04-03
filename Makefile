@@ -79,6 +79,8 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 #Clean Obj files and builded stuff
 clean:
 	$(RMDIR) $(BUILD_DIR) $(OBJ_DIR)
+
+syntax:
 	$(STYLE) $(CFILES)
 
 #Debug target: starts the st-util server and gdb and leaves it open
