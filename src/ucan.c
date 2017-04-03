@@ -44,13 +44,14 @@ CARME_CAN_MESSAGE rx_msg;
 CARME_CAN_MESSAGE tx_msg;
 
 /* ----- Prototypes ---------------------------------------------------------*/
-static void setup_acceptance_filter();
-static bool receive_data();
-bool init_can(void);
+static void ucan_setup_acceptance_filter(void);
+static bool ucan_receive_data(void);
+bool ucan_send_data(uint8_t msg_id, uint8_t data);
+bool ucan_init(void);
 
 
 /* setup acceptance filter */
-static void setup_acceptance_filter()
+static void ucan_setup_acceptance_filter(void)
 {
     CARME_CAN_ACCEPTANCE_FILTER af;
 
@@ -79,7 +80,7 @@ static void setup_acceptance_filter()
 }
 
 /* Initialize can hardware */
-bool init_can(void)
+bool ucan_init(void)
 {
     GPIO_InitTypeDef g;
 
@@ -95,10 +96,9 @@ bool init_can(void)
     /* Init can chip */
     CARME_CAN_Init(CARME_CAN_BAUD_250K, CARME_CAN_DF_RESET);
     CARME_CAN_SetMode(CARME_CAN_DF_NORMAL);
-    setup_acceptance_filter();
 
     /* Setup acceptance filter */
-    setup_acceptance_filter();
+    ucan_setup_acceptance_filter();
 
     /* Clear the rx CAN message */
     for(int i = 0; i < 7; i++) {
@@ -114,7 +114,7 @@ bool init_can(void)
 }
 
 /* Send data via can */
-bool send_data(uint8_t msg_id, uint8_t data)
+bool ucan_send_data(uint8_t msg_id, uint8_t data)
 {
     /* Setup basic CAN message header */
     tx_msg.id = msg_id; // Your ID
@@ -123,6 +123,6 @@ bool send_data(uint8_t msg_id, uint8_t data)
     tx_msg.dlc = 1; // Send 1byte
 }
 
-bool receive_data()
+bool ucan_receive_data(void)
 {
 }
