@@ -17,8 +17,8 @@
 /*----- Data types -----------------------------------------------------------*/
 
 /*----- Function prototypes --------------------------------------------------*/
-bool init_can(void);
-bool send_data(uint8_t rx_id, uint8_t data);
-bool recieve_data(void);
+bool ucan_init(void);
+bool ucan_send_data(uint8_t rx_id, uint8_t data);
+bool ucan_recieve_data(void);
 
 #endif // UCAN_H
