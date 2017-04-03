@@ -117,11 +117,11 @@ void display_task()
             memcpy(&message_buffer[replace_buffer_index],&tmp_message,sizeof(message_t));
             display_print_message(new_id-top_id, &message_buffer[replace_buffer_index]);
         } else if(top_id > bottom_id && new_id <= bottom_id ) {
+            //Replace message (and handle index wraping)
             uint8_t replace_buffer_index =(buffer_offset + visible_messages -1 - (bottom_id-new_id)) % DISPLAY_LINES;
             memcpy(&message_buffer[replace_buffer_index],&tmp_message,sizeof(message_t));
-            display_print_message(new_id-top_id, &message_buffer[replace_buffer_index]);
+            display_print_message(visible_messages -1 - (bottom_id-new_id), &message_buffer[replace_buffer_index]);
         } else { //message is new
-
             if(visible_messages == DISPLAY_LINES) {
                 memcpy(&message_buffer[buffer_offset],&tmp_message,sizeof(message_t));
                 buffer_offset = (buffer_offset +1) % DISPLAY_LINES;
