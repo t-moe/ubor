@@ -111,7 +111,7 @@ void display_task()
 
         //Check if message has the same id as a message that is currently beeing displayed
         if((top_id <= bottom_id && new_id >= top_id && new_id <= bottom_id) ||
-           (top_id > bottom_id && new_id >= top_id)) {
+                (top_id > bottom_id && new_id >= top_id)) {
             //Replace message
             uint8_t replace_buffer_index =(buffer_offset + (new_id-top_id)) % DISPLAY_LINES;
             memcpy(&message_buffer[replace_buffer_index],&tmp_message,sizeof(message_t));

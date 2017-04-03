@@ -8,6 +8,7 @@
 
 
 #include "display.h"
+#include "bcs.h"
 #include <task.h>
 
 
@@ -44,8 +45,9 @@ int  main(void)
     CARME_IO1_Init();               // Initialize the CARMEIO1
     CARME_IO2_Init();
 
-
+    ucan_init();
     display_init();
+    bcs_init();
 
     xTaskCreate(vAppTask,
                 "Taskx",
