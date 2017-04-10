@@ -184,6 +184,7 @@ bool ucan_init(void)
 
     /* create binary semaphore */
     can_semaphore = xSemaphoreCreateBinary();
+    xSemaphoreGive(can_semaphore);
 
     /* Spawn tasks */
     xTaskCreate(ucan_write_data, "CAN_Write_Task", STACKSIZE_TASK, NULL, PRIORITY_TASK, NULL);
