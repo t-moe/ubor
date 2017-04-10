@@ -55,7 +55,7 @@
 #define MSG_QUEUE_SIZE 1
 #define ARM_TASK_PRIORITY 2
 #define ARM_TASK_STACKSIZE 256
-#define TASK_DELAY 10000
+#define TASK_DELAY 100
 
 //----- Data types -------------------------------------------------------------
 

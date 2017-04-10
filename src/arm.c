@@ -46,9 +46,9 @@
 static QueueHandle_t queueRobotLeft;
 static QueueHandle_t queueRobotRight;
 static SemaphoreHandle_t mutexMiddlePosition;
-uint64_t *pcMsgBufferRight;
-uint64_t *pcMsgBufferLeft;
-uint8_t *posArm;
+CARME_CAN_MESSAGE pcMsgBufferRight;
+CARME_CAN_MESSAGE pcMsgBufferLeft;
+
 uint8_t status_request[2] = {0x02,0x00};
 //----- Implementation ---------------------------------------------------------
 
@@ -66,7 +66,7 @@ uint8_t status_request[2] = {0x02,0x00};
 void vMoveRoboter(void *pvData) {
 
 	int leftRightSel = (int)pvData;
-	//uint8_t *posArm;
+	uint8_t *posArm;
 	int id_arm_comand_request;
 
 	/* Init */
@@ -88,7 +88,7 @@ void vMoveRoboter(void *pvData) {
 
 
 		mutexMiddlePosition = xSemaphoreCreateMutex();
-		queueRobotRight = xQueueCreate(MSG_QUEUE_SIZE, 8);
+		queueRobotRight = xQueueCreate(MSG_QUEUE_SIZE, sizeof(CARME_CAN_MESSAGE));
 		ucan_link_message_to_queue(ROBOT_R_STATUS_RETURN_ID, queueRobotRight);
 		posArm = (uint8_t *)posArmRight;
 		id_arm_comand_request = ROBOT_R_COMAND_REQUEST_ID;
@@ -111,7 +111,7 @@ void vMoveRoboter(void *pvData) {
 				};
 	 	posArm = (uint8_t *)posArmLeft;
 	 	id_arm_comand_request = ROBOT_L_COMAND_REQUEST_ID;
-	 	queueRobotLeft = xQueueCreate(MSG_QUEUE_SIZE, 8);
+	 	queueRobotLeft = xQueueCreate(MSG_QUEUE_SIZE, sizeof(CARME_CAN_MESSAGE));
 	 	ucan_link_message_to_queue(ROBOT_L_STATUS_RETURN_ID, queueRobotLeft);
 	}
 
@@ -122,11 +122,11 @@ void vMoveRoboter(void *pvData) {
 		{
 			if(leftRightSel == 0)
 			{
-				display_log(DISPLAY_NEWLINE, "Right arm position %i", n);
+				//display_log(DISPLAY_NEWLINE, "Right arm position %i", n);
 			}
 			else
 			{
-				display_log(DISPLAY_NEWLINE, "Left arm position %i", n);
+				//display_log(DISPLAY_NEWLINE, "Left arm position %i", n);
 			}
 
 
@@ -135,11 +135,11 @@ void vMoveRoboter(void *pvData) {
 				xSemaphoreGive(mutexMiddlePosition);
 				if(leftRightSel == 0)
 				{
-					display_log(DISPLAY_NEWLINE, "Right arm give semaphore");
+					//display_log(DISPLAY_NEWLINE, "Right arm give semaphore");
 				}
 				else
 				{
-					display_log(DISPLAY_NEWLINE, "Left arm give semaphore");
+					//display_log(DISPLAY_NEWLINE, "Left arm give semaphore");
 				}
 			}
 
@@ -150,11 +150,11 @@ void vMoveRoboter(void *pvData) {
 				if(xSemaphoreTake(mutexMiddlePosition, portMAX_DELAY) == pdTRUE);
 				if(leftRightSel == 0)
 				{
-					display_log(DISPLAY_NEWLINE, "Right arm take semaphore");
+					//display_log(DISPLAY_NEWLINE, "Right arm take semaphore");
 				}
 				else
 				{
-					display_log(DISPLAY_NEWLINE, "Left arm take semaphore");
+					//display_log(DISPLAY_NEWLINE, "Left arm take semaphore");
 				}
 			}
 
@@ -168,23 +168,70 @@ void vMoveRoboter(void *pvData) {
 void waitUntilPos(uint8_t *pos, int side)
 {
 	uint8_t *temp = (uint8_t *)pos;
+	bool closeEnough = false;
+
 	if(side == 0){
-		display_log(DISPLAY_NEWLINE, "Right arm wait until position reached");
-		while(memcpy(&temp,&pcMsgBufferRight,8) != 0)
+		//display_log(DISPLAY_NEWLINE, "Right arm wait until position reached");
+
+		while(closeEnough != true)
 		{
+			/*display_log(DISPLAY_NEWLINE,"right pos %x %x %x %x %x %x",pcMsgBufferRight.data[0],
+					pcMsgBufferRight.data[1],
+					pcMsgBufferRight.data[2],
+					pcMsgBufferRight.data[3],
+					pcMsgBufferRight.data[4],
+					pcMsgBufferRight.data[5]
+			);
+			display_log(DISPLAY_NEWLINE, "right pos soll %x %x %x %x %x %x",temp[0],temp[1],
+								temp[2],
+								temp[3],
+								temp[4],
+								temp[5]);*/
 			ucan_send_data(STATUS_REQEST_DLC, ROBOT_R_STATUS_REQUEST_ID, status_request );
+			vTaskDelay(500);
 			xQueueReceive(queueRobotRight, (void *)&pcMsgBufferRight, portMAX_DELAY);
+			closeEnough = true;
+			for(int i=1; i<6; i++){
+						if(abs(temp[i]-pcMsgBufferRight.data[i])>0x02){
+						closeEnough = false;
+						break;
+						}
+
+					}
+
 		}
-		display_log(DISPLAY_NEWLINE, "Right arm reached position");
+		//display_log(DISPLAY_NEWLINE, "Right arm reached position");
 	}
 	else{
-		display_log(DISPLAY_NEWLINE, "Left arm wait until position reached");
-		while(memcpy(&temp,&pcMsgBufferLeft,8) != 0)
+		//display_log(DISPLAY_NEWLINE, "Left arm wait until position reached");
+		while(closeEnough != true)
 		{
+			/*display_log(DISPLAY_NEWLINE,"left pos %x %x %x %x %x %x",pcMsgBufferLeft.data[0],
+								pcMsgBufferLeft.data[1],
+								pcMsgBufferLeft.data[2],
+								pcMsgBufferLeft.data[3],
+								pcMsgBufferLeft.data[4],
+								pcMsgBufferLeft.data[5]
+						);
+			display_log(DISPLAY_NEWLINE, "left pos soll %x %x %x %x %x %x",temp[0],temp[1],
+					temp[2],
+					temp[3],
+					temp[4],
+					temp[5]);*/
 			ucan_send_data(STATUS_REQEST_DLC, ROBOT_L_STATUS_REQUEST_ID, status_request );
+			vTaskDelay(500);
 			xQueueReceive(queueRobotLeft, (void *)&pcMsgBufferLeft, portMAX_DELAY);
+			closeEnough = true;
+			for(int i=1; i<6; i++){
+									if(abs(temp[i]-pcMsgBufferLeft.data[i])>0x02){
+									closeEnough = false;
+									break;
+									}
+
+								}
 		}
-		display_log(DISPLAY_NEWLINE, "Left arm reached position");
+
+		//display_log(DISPLAY_NEWLINE, "Left arm reached position");
 	}
 
 
