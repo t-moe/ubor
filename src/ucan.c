@@ -43,6 +43,7 @@ static uint16_t n_message_map;
 
 static SemaphoreHandle_t can_semaphore;
 
+
 /* ----- Functions -----------------------------------------------------------*/
 
 /* TASK: Write data from message queue to bus */
@@ -55,7 +56,7 @@ static void ucan_write_data(void *pv_data)
         if(xSemaphoreTake(can_semaphore, portMAX_DELAY) == pdTRUE) {
             CARME_CAN_Write(&tx_msg); // Send message to CAN BUS
             xSemaphoreGive(can_semaphore); //return semaphore
-            //display_log(DISPLAY_NEWLINE, "Sent msg_id 0x%03x to can", tx_msg.id); // Log message to display
+            LOG_IF(UCAN_LOG_SENT,DISPLAY_NEWLINE, "Sent msg_id 0x%03x to can", tx_msg.id); // Log message to display
         }
     }
 }
@@ -68,7 +69,7 @@ static void ucan_read_data(void *pv_data)
         if(xSemaphoreTake(can_semaphore, portMAX_DELAY) == pdTRUE) {
             if (CARME_CAN_Read(&rx_msg) == CARME_NO_ERROR) {
                 xSemaphoreGive(can_semaphore); //return semaphore
-                //display_log(DISPLAY_NEWLINE, "Got msg_id 0x%03x", rx_msg.id); // Log message to display
+                LOG_IF(UCAN_LOG_RECEIVE,DISPLAY_NEWLINE, "Got msg_id 0x%03x", rx_msg.id); // Log message to display
                 xQueueSend(can_rx_queue, &rx_msg, portMAX_DELAY);
             } else {
                 xSemaphoreGive(can_semaphore); //return semaphore
@@ -94,14 +95,14 @@ static void ucan_dispatch_data(void *pv_data)
             if((tmp_msg.id & message_map[i].mask) == message_map[i].message_id) {
                 queue = message_map[i].queue;
                 match = true;
-                display_log(DISPLAY_NEWLINE, "Dispatched msg_id 0x%03x", tmp_msg.id);
+                LOG_IF(UCAN_LOG_DISPATCH, DISPLAY_NEWLINE, "Dispatched msg_id 0x%03x", tmp_msg.id);
                 xQueueSend(queue, &tmp_msg, portMAX_DELAY); // forward it to the queue
             }
         }
 
         /* if there were no matches, drop messages */
         if(!match) {
-            display_log(DISPLAY_NEWLINE, "Dropped msg_id 0x%03x", tmp_msg.id);
+            LOG_IF(UCAN_LOG_DROP,DISPLAY_NEWLINE, "Dropped msg_id 0x%03x", tmp_msg.id);
         }
     }
 }
@@ -217,7 +218,7 @@ bool ucan_send_data(uint8_t n_data_bytes, uint16_t msg_id, const uint8_t *data)
     tmp_msg.dlc = n_data_bytes; // Number of bytes
 
     memcpy(tmp_msg.data, data, min(n_data_bytes, 8)); // copy databytes to output buffer but only 8bytes
-    //display_log(DISPLAY_NEWLINE, "Insert msg_id 0x%03x to queue", msg_id); // Log message to display
+    LOG_IF(UCAN_LOG_SENDING,DISPLAY_NEWLINE, "Insert msg_id 0x%03x to queue", msg_id); // Log message to display
     xQueueSend(can_tx_queue, &tmp_msg, portMAX_DELAY); // Send message to the message queue
 
     return true;
