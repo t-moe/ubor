@@ -1,5 +1,4 @@
 #include "display.h"
-//#include <semphr.h>
 #include <FreeRTOS.h>
 #include <stdio.h>
 #include <task.h>
@@ -31,6 +30,7 @@ typedef struct __attribute__((__packed__))
 }
 status_t;
 
+//Messages for conveyer system
 static const message_t msg_status_request = {0,1,{1}};
 static const uint16_t msg_status_response_id = 1;
 static const message_t msg_cmd_start = {2,3,{1,0,0}};
@@ -39,30 +39,28 @@ static const message_t msg_cmd_stoppos = {2,3,{3,0x00,0xB6}};
 static const message_t msg_cmd_done= {2,3,{4,0,0}};
 static const message_t msg_cmd_reset= {0xF,0};
 
-
-/*
-static const uint16_t bcs_left= 0x110;
-static const uint16_t bcs_mid = 0x120;
-static const uint16_t bcs_right = 0x130;
-*/
-
-
+//Messages for dispatcher
 static const message_t msg_cmd_disp_initial_pos = {0x142, 3, {1, 0, 100}};
 static const message_t msg_cmd_disp_start_right = {0x142, 3, {1, 0xE4, 100}};
 static const message_t msg_cmd_disp_move_right = {0x142, 3, {1, 0x32, 50}};
 static const message_t msg_cmd_disp_start_left = {0x142, 3, {1, 0x1C, 100}};
 static const message_t msg_cmd_disp_move_left = {0x142, 3, {1, 0xCE, 50}};
 
+//Messages Queues to receive data from can
 static QueueHandle_t ucan_queue_mid;
 static QueueHandle_t ucan_queue_left;
 static QueueHandle_t ucan_queue_right;
 
-static SemaphoreHandle_t bcs_left_start_semaphore;
-static SemaphoreHandle_t bcs_left_end_semaphore;
-static SemaphoreHandle_t bcs_right_start_semaphore;
-static SemaphoreHandle_t bcs_right_end_semaphore;
+//Semaphores
+static SemaphoreHandle_t bcs_left_start_semaphore; //Given by mid task, Taken by left
+static SemaphoreHandle_t bcs_right_start_semaphore; //Given by mid task, Taken by right
+SemaphoreHandle_t bcs_left_end_semaphore; //Given by left task, Taken by Arm Left
+SemaphoreHandle_t bcs_right_end_semaphore; //Given by right task, taken by Arm Right
 
-enum belt_select {belt_left=0x110, belt_mid=0x120, belt_right=0x130};
+//Enum to destinguish the different tasks. The members point to the base address of the can endpoints
+enum belt_select {belt_left=0x110,
+                  belt_mid=0x120,
+                  belt_right=0x130};
 
 static void bcs_send_msg(const message_t* msg, uint16_t baseaddr)
 {
@@ -92,7 +90,6 @@ void bcs_task(void *pv_data)
 
 
     }
-
 
 
     while(true) {
@@ -151,6 +148,7 @@ void bcs_task(void *pv_data)
             }
 
             display_log(statR,"Waiting on block (%u): detection: %u pos: %04x",wait_count,status->detection, status->position);
+            vTaskDelay(100);
 
             /* Timeout */
             if(wait_count >= 100) {

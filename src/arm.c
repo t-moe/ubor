@@ -120,42 +120,19 @@ void vMoveRoboter(void *pvData) {
 
 		for(int n = 0; n < 10; n++)
 		{
-			if(leftRightSel == 0)
-			{
-				//display_log(DISPLAY_NEWLINE, "Right arm position %i", n);
-			}
-			else
-			{
-				//display_log(DISPLAY_NEWLINE, "Left arm position %i", n);
-			}
-
+            display_log(DISPLAY_NEWLINE, "Going to position %u",n);
 
 			if(n == 1)
 			{
 				xSemaphoreGive(mutexMiddlePosition);
-				if(leftRightSel == 0)
-				{
-					//display_log(DISPLAY_NEWLINE, "Right arm give semaphore");
-				}
-				else
-				{
-					//display_log(DISPLAY_NEWLINE, "Left arm give semaphore");
-				}
+                //display_log(DISPLAY_NEWLINE, "give semaphore");
 			}
-
 
 
 			if (n == 3)
 			{
-				if(xSemaphoreTake(mutexMiddlePosition, portMAX_DELAY) == pdTRUE);
-				if(leftRightSel == 0)
-				{
-					//display_log(DISPLAY_NEWLINE, "Right arm take semaphore");
-				}
-				else
-				{
-					//display_log(DISPLAY_NEWLINE, "Left arm take semaphore");
-				}
+                xSemaphoreTake(mutexMiddlePosition, portMAX_DELAY);
+                //display_log(DISPLAY_NEWLINE, "take semaphore");
 			}
 
 			ucan_send_data(COMAND_DLC, id_arm_comand_request, &posArm[n*8] );
@@ -191,13 +168,12 @@ void waitUntilPos(uint8_t *pos, int side)
 			vTaskDelay(500);
 			xQueueReceive(queueRobotRight, (void *)&pcMsgBufferRight, portMAX_DELAY);
 			closeEnough = true;
-			for(int i=1; i<6; i++){
-						if(abs(temp[i]-pcMsgBufferRight.data[i])>0x02){
-						closeEnough = false;
-						break;
-						}
-
-					}
+            for(int i=1; i<6; i++){
+                if(abs(temp[i]-pcMsgBufferRight.data[i])>0x02){
+                    closeEnough = false;
+                    break;
+                }
+            }
 
 		}
 		//display_log(DISPLAY_NEWLINE, "Right arm reached position");
