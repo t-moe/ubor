@@ -89,6 +89,13 @@ static void ucan_dispatch_data(void *pv_data)
     while(true) {
         xQueueReceive(can_rx_queue, &tmp_msg, portMAX_DELAY); // get a message from the rx queue
         QueueHandle_t queue = get_queue_by_id(tmp_msg.id); // determine its queue
+
+        /* Check if the message belongs to a queue */
+        if(queue == NULL){
+            display_log(DISPLAY_NEWLINE, "Dropped msg_id 0x%03x", tmp_msg.id);
+            continue;
+        }
+
         xQueueSend(queue, &tmp_msg, portMAX_DELAY); // forward it to the queue
     }
 }
