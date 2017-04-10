@@ -182,6 +182,9 @@ bool ucan_init(void)
     can_tx_queue = xQueueCreate(QUEUE_SIZE, sizeof(tx_msg));
     can_rx_queue = xQueueCreate(QUEUE_SIZE, sizeof(tx_msg));
 
+    /* create binary semaphore */
+    can_semaphore = xSemaphoreCreateBinary();
+
     /* Spawn tasks */
     xTaskCreate(ucan_write_data, "CAN_Write_Task", STACKSIZE_TASK, NULL, PRIORITY_TASK, NULL);
     xTaskCreate(ucan_read_data, "CAN_Read_Task", STACKSIZE_TASK, NULL, PRIORITY_TASK, NULL);
