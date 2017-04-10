@@ -6,6 +6,7 @@
 #include <lcd.h>
 #include <stdbool.h>
 #include <string.h>
+#include <semphr.h>
 
 
 // -------------------- Configuration  ------------
@@ -23,11 +24,12 @@
 typedef struct {
     const char* taskname;
     uint8_t id;
-    char message[30];
+    char message[DISPLAY_CHARS+1];
 } message_t;
 
 static uint8_t last_given_id = 0;
 static QueueHandle_t display_queue;
+static SemaphoreHandle_t display_id_mutex;
 
 
 uint8_t display_log(uint8_t id, const char *fmtstr, ...)
@@ -46,7 +48,8 @@ uint8_t display_log(uint8_t id, const char *fmtstr, ...)
     //Assign a new id to the message
     uint8_t newId;
 
-    //Todo: mutex protect
+    xSemaphoreTake(display_id_mutex,portMAX_DELAY);
+
     if(id == DISPLAY_NEWLINE) {
         newId = ++last_given_id;
         if(last_given_id == 0xFF) {
@@ -55,7 +58,7 @@ uint8_t display_log(uint8_t id, const char *fmtstr, ...)
     } else {
         newId = id;
     }
-    //Todo: mutex release
+    xSemaphoreGive(display_id_mutex);
 
 
     msg.id = newId;
@@ -155,6 +158,7 @@ void display_init()
                 NULL);
 
     display_queue =  xQueueCreate(QUEUE_SIZE,sizeof(message_t));
+    display_id_mutex = xSemaphoreCreateMutex();
 
 }
 
