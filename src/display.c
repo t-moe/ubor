@@ -10,11 +10,12 @@
 
 // -------------------- Configuration  ------------
 #define STACKSIZE_TASK        ( 256 )
-#define PRIORITY_TASK         ( 2 ) //  low priority number denotes low priority task
+#define PRIORITY_TASK         ( 3 ) //  low priority number denotes low priority task
 
 #define QUEUE_SIZE 10
 
 #define DISPLAY_LINES   30
+#define DISPLAY_CHARS   64
 
 
 // ------------------ Implementation ------------------------
@@ -87,7 +88,7 @@ void display_print_message(uint8_t line, message_t* msg)
         LCD_DisplayCharLine(line,x++,*charPtr++);
     }
 
-    for(uint8_t i =0; i<10; i++) {
+    while(x<DISPLAY_CHARS) {
         LCD_DisplayCharLine(line,x++,' ');
     }
 }

@@ -31,7 +31,7 @@ static void vAppTask(void *pvData)
         display_log(id,"test updated %u",i);
         vTaskDelay(100);
         display_log(id2,"test updated %u",i);
-        vTaskDelay(100);
+        vTaskDelay(1000);
     }
 }
 
@@ -49,12 +49,12 @@ int  main(void)
     display_init();
     bcs_init();
 
-    xTaskCreate(vAppTask,
+   /* xTaskCreate(vAppTask,
                 "Taskx",
                 STACKSIZE_TASK,
                 NULL,
                 PRIORITY_TASK,
-                NULL);
+                NULL);*/
 
 
 

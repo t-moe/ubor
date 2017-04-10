@@ -48,37 +48,49 @@ static SemaphoreHandle_t can_semaphore;
 static void ucan_write_data(void *pv_data)
 {
     /* check if semaphore is already taken */
-    if(!xSemaphoreTake(can_semaphore, portMAX_DELAY)){
-        return;
-    }
+
 
     while(true) {
         xQueueReceive(can_tx_queue, &tx_msg, portMAX_DELAY); // get latest message from queue
-        CARME_CAN_Write(&tx_msg); // Send message to CAN BUS
-        display_log(DISPLAY_NEWLINE, "Sent msg_id 0x%03x to can", tx_msg.id); // Log message to display
+
+        if(xSemaphoreTake(can_semaphore, portMAX_DELAY) == pdTRUE){
+            CARME_CAN_Write(&tx_msg); // Send message to CAN BUS
+            xSemaphoreGive(can_semaphore); //return semaphore
+
+            //display_log(DISPLAY_NEWLINE, "Sent msg_id 0x%03x to can", tx_msg.id); // Log message to display
+        }
+
     }
 
-    /* return semaphore */
-    xSemaphoreGive(can_semaphore);
+
 }
 
 /* TASK: Get can messages and send them to the according message queue */
 static void ucan_read_data(void *pv_data)
 {
-    /* check if semaphore is already taken */
-    if(!xSemaphoreTake(can_semaphore, portMAX_DELAY)){
-        return;
-    }
 
     while(true) {
-        if (CARME_CAN_Read(&rx_msg) == CARME_NO_ERROR) {
-            xQueueSend(can_rx_queue, &rx_msg, portMAX_DELAY);
-            display_log(DISPLAY_NEWLINE, "Got msg_id 0x%03x", tx_msg.id); // Log message to display
+        /* check if semaphore is already taken */
+        if(xSemaphoreTake(can_semaphore, portMAX_DELAY) == pdTRUE){
+
+            if (CARME_CAN_Read(&rx_msg) == CARME_NO_ERROR) {
+                xSemaphoreGive(can_semaphore); //return semaphore
+
+                //display_log(DISPLAY_NEWLINE, "Got msg_id 0x%03x", rx_msg.id); // Log message to display
+                xQueueSend(can_rx_queue, &rx_msg, portMAX_DELAY);
+
+            } else {
+                xSemaphoreGive(can_semaphore); //return semaphore
+            }
+
+            vTaskDelay(100);
         }
+
+
     }
 
-    /* return semaphore */
-    xSemaphoreGive(can_semaphore);
+
+
 }
 
 /* Reads incomming can messages from the rx_queue and forwards them according to the queue map */
@@ -93,10 +105,10 @@ static void ucan_dispatch_data(void *pv_data)
         /* Check if the message belongs to a queue */
         if(queue == NULL){
             display_log(DISPLAY_NEWLINE, "Dropped msg_id 0x%03x", tmp_msg.id);
-            continue;
+        } else {
+            display_log(DISPLAY_NEWLINE, "Dispatched msg_id 0x%03x", tmp_msg.id);
+            xQueueSend(queue, &tmp_msg, portMAX_DELAY); // forward it to the queue
         }
-
-        xQueueSend(queue, &tmp_msg, portMAX_DELAY); // forward it to the queue
     }
 }
 
@@ -134,7 +146,7 @@ static void ucan_setup_acceptance_filter(void)
 QueueHandle_t get_queue_by_id(uint16_t message_id)
 {
     /* search for the corresponding queue handle */
-    for(int i = 0; i==n_message_map; i++) {
+    for(int i = 0; i<n_message_map; i++) {
         if(message_map[i].message_id == message_id) {
             return message_map[i].queue;
         }
@@ -147,13 +159,14 @@ QueueHandle_t get_queue_by_id(uint16_t message_id)
 bool ucan_link_message_to_queue(uint16_t message_id, QueueHandle_t queue)
 {
     /* Check if there is enough space left */
-    if(n_message_map > SIZE_MAP-1) {
+    if(n_message_map >= SIZE_MAP) {
         return false;
     }
 
     /* increment message counter, save message_id and the corresponding queue */
-    message_map[n_message_map++].message_id = message_id;
+    message_map[n_message_map].message_id = message_id;
     message_map[n_message_map].queue = queue;
+    n_message_map++;
 
     return true;
 }
@@ -186,12 +199,14 @@ bool ucan_init(void)
     }
 
     /* Create message queues for can communication */
-    can_tx_queue = xQueueCreate(QUEUE_SIZE, sizeof(tx_msg));
-    can_rx_queue = xQueueCreate(QUEUE_SIZE, sizeof(tx_msg));
+    can_tx_queue = xQueueCreate(QUEUE_SIZE, sizeof(CARME_CAN_MESSAGE));
+    can_rx_queue = xQueueCreate(QUEUE_SIZE, sizeof(CARME_CAN_MESSAGE));
 
     /* create binary semaphore */
     can_semaphore = xSemaphoreCreateBinary();
     xSemaphoreGive(can_semaphore);
+
+    n_message_map = 0;
 
     /* Spawn tasks */
     xTaskCreate(ucan_write_data, "CAN_Write_Task", STACKSIZE_TASK, NULL, PRIORITY_TASK, NULL);
@@ -213,7 +228,7 @@ bool ucan_send_data(uint8_t n_data_bytes, uint16_t msg_id, const uint8_t *data)
     tmp_msg.dlc = n_data_bytes; // Number of bytes
 
     memcpy(tmp_msg.data, data, min(n_data_bytes, 8)); // copy databytes to output buffer but only 8bytes
-    display_log(DISPLAY_NEWLINE, "Insert msg_id 0x%03x to queue", msg_id); // Log message to display
+    //display_log(DISPLAY_NEWLINE, "Insert msg_id 0x%03x to queue", msg_id); // Log message to display
     xQueueSend(can_tx_queue, &tmp_msg, portMAX_DELAY); // Send message to the message queue
 
     return true;
