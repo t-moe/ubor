@@ -78,7 +78,6 @@
 bool ucan_init(void);
 bool ucan_send_data(uint8_t n_data_bytes, uint16_t msg_id, const uint8_t *data);
 bool ucan_link_message_to_queue(uint16_t message_id, QueueHandle_t queue);
-
-QueueHandle_t get_queue_by_id(uint16_t message_id);
+bool ucan_link_message_to_queue_mask(uint16_t mask, uint16_t message_id, QueueHandle_t queue);
 
 #endif // UCAN_H

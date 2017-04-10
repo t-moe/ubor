@@ -28,6 +28,7 @@
 typedef struct msg_link_s {
     QueueHandle_t queue;
     uint16_t message_id;
+    uint16_t mask;
 } msg_link_t;
 
 /* ----- Globals ------------------------------------------------------------*/
@@ -47,67 +48,60 @@ static SemaphoreHandle_t can_semaphore;
 /* TASK: Write data from message queue to bus */
 static void ucan_write_data(void *pv_data)
 {
-    /* check if semaphore is already taken */
-
-
     while(true) {
         xQueueReceive(can_tx_queue, &tx_msg, portMAX_DELAY); // get latest message from queue
 
-        if(xSemaphoreTake(can_semaphore, portMAX_DELAY) == pdTRUE){
+        /* check if semaphore is already taken */
+        if(xSemaphoreTake(can_semaphore, portMAX_DELAY) == pdTRUE) {
             CARME_CAN_Write(&tx_msg); // Send message to CAN BUS
             xSemaphoreGive(can_semaphore); //return semaphore
-
             //display_log(DISPLAY_NEWLINE, "Sent msg_id 0x%03x to can", tx_msg.id); // Log message to display
         }
-
     }
-
-
 }
 
 /* TASK: Get can messages and send them to the according message queue */
 static void ucan_read_data(void *pv_data)
 {
-
     while(true) {
         /* check if semaphore is already taken */
-        if(xSemaphoreTake(can_semaphore, portMAX_DELAY) == pdTRUE){
-
+        if(xSemaphoreTake(can_semaphore, portMAX_DELAY) == pdTRUE) {
             if (CARME_CAN_Read(&rx_msg) == CARME_NO_ERROR) {
                 xSemaphoreGive(can_semaphore); //return semaphore
-
                 //display_log(DISPLAY_NEWLINE, "Got msg_id 0x%03x", rx_msg.id); // Log message to display
                 xQueueSend(can_rx_queue, &rx_msg, portMAX_DELAY);
-
             } else {
                 xSemaphoreGive(can_semaphore); //return semaphore
             }
-
             vTaskDelay(100);
         }
-
-
     }
-
-
-
 }
 
-/* Reads incomming can messages from the rx_queue and forwards them according to the queue map */
+/* Read incomming can messages from the rx_queue and forwards them according to the queue map */
 static void ucan_dispatch_data(void *pv_data)
 {
     CARME_CAN_MESSAGE tmp_msg;
+    QueueHandle_t queue;
+    bool match = false;
 
     while(true) {
         xQueueReceive(can_rx_queue, &tmp_msg, portMAX_DELAY); // get a message from the rx queue
-        QueueHandle_t queue = get_queue_by_id(tmp_msg.id); // determine its queue
+        match = false;
+        /* search for the corresponding queue handles */
+        for(int i = 0; i < n_message_map; i++) {
+            /* Apply the message mask to the tmp id and search for matches in the message_map*/
+            if((tmp_msg.id & message_map[i].mask) == message_map[i].message_id) {
+                queue = message_map[i].queue;
+                match = true;
+                display_log(DISPLAY_NEWLINE, "Dispatched msg_id 0x%03x", tmp_msg.id);
+                xQueueSend(queue, &tmp_msg, portMAX_DELAY); // forward it to the queue
+            }
+        }
 
-        /* Check if the message belongs to a queue */
-        if(queue == NULL){
+        /* if there were no matches, drop messages */
+        if(!match) {
             display_log(DISPLAY_NEWLINE, "Dropped msg_id 0x%03x", tmp_msg.id);
-        } else {
-            display_log(DISPLAY_NEWLINE, "Dispatched msg_id 0x%03x", tmp_msg.id);
-            xQueueSend(queue, &tmp_msg, portMAX_DELAY); // forward it to the queue
         }
     }
 }
@@ -142,33 +136,28 @@ static void ucan_setup_acceptance_filter(void)
     CARME_CAN_SetMode(CARME_CAN_DF_NORMAL);
 }
 
-/* Get the queue to sent the message to */
-QueueHandle_t get_queue_by_id(uint16_t message_id)
-{
-    /* search for the corresponding queue handle */
-    for(int i = 0; i<n_message_map; i++) {
-        if(message_map[i].message_id == message_id) {
-            return message_map[i].queue;
-        }
-    }
-
-    return NULL;
-}
-
-/* Link a message type to a queue */
-bool ucan_link_message_to_queue(uint16_t message_id, QueueHandle_t queue)
+/* Set a message mask to map multiple message to a queue*/
+bool ucan_link_message_to_queue_mask(uint16_t mask, uint16_t message_id, QueueHandle_t queue)
 {
     /* Check if there is enough space left */
     if(n_message_map >= SIZE_MAP) {
         return false;
     }
 
-    /* increment message counter, save message_id and the corresponding queue */
+    /* increment message counter, save message_id, the mask and the corresponding queue */
     message_map[n_message_map].message_id = message_id;
     message_map[n_message_map].queue = queue;
+    message_map[n_message_map].mask = mask;
     n_message_map++;
 
     return true;
+
+}
+
+/* Link a single message type to a queue */
+bool ucan_link_message_to_queue(uint16_t message_id, QueueHandle_t queue)
+{
+    ucan_link_message_to_queue_mask(0x0FFF, message_id, queue);
 }
 
 /* Initialize can hardware */
