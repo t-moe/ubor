@@ -60,7 +60,7 @@ static SemaphoreHandle_t mutexMiddlePosition;
  ******************************************************************************/
 void vMoveRoboter(void *pvData) {
 
-	uint8_t leftRightSel = (uint8_t)pvData;
+	int leftRightSel = (int)pvData;
 	uint8_t posArm[10][8];
 
 
@@ -70,7 +70,7 @@ void vMoveRoboter(void *pvData) {
 		mutexMiddlePosition = xSemaphoreCreateMutex();
 		queueRobot = xQueueCreate(MSG_QUEUE_SIZE, 8);
 
-		const uint8_t posArm[10][8] = {
+		 uint8_t posArm[10][8] = {
 			/*                      Arm	   B     S     E     H     G     x     x */
 			/*0 Nullposition     */ {0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 			/*1 StartPosition    */ {0x02, 0x00, 0xF0, 0x3A, 0xFD, 0x00, 0x00, 0x00},
@@ -88,7 +88,7 @@ void vMoveRoboter(void *pvData) {
 
 	if(leftRightSel == 1)
 	{
-	 	const uint8_t posArm[10][8] = {
+	 	 uint8_t posArm[10][8] = {
 				/*                      Arm	   B     S     E     H     G     x     x */
 				/*0 Nullposition     */ {0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 				/*1 StartPosition    */ {0x02, 0x00, 0xF0, 0x3A, 0xFD, 0x00, 0x00, 0x00},
@@ -120,7 +120,7 @@ void vMoveRoboter(void *pvData) {
 				if(xSemaphoreTake(mutexMiddlePosition, BLOCK_TIME_MIDDLE_POS) == pdTRUE);
 			}
 			ucan_send_data(COMAND_DLC, ROBOT_L_COMAND_REQUEST_ID, posArm[n] );
-			waitUntilPos(posArm[n]);
+			//waitUntilPos(posArm[n]);
 			vTaskDelay(TASK_DELAY);
 		}
 
@@ -128,7 +128,7 @@ void vMoveRoboter(void *pvData) {
 	}
 
 }
-
+/*
 void waitUntilPos(uint8_t *pos)
 {
 
@@ -140,22 +140,22 @@ void waitUntilPos(uint8_t *pos)
 
 	}
 
-}
+}*/
 
 void initArm()
 {
 	xTaskCreate(vMoveRoboter,
 	                "Arm Left",
 	                ARM_TASK_STACKSIZE,
-	                0,
+	                (void*)0,
 	                ARM_TASK_PRIORITY,
 	                NULL);
-
+/*
 	xTaskCreate(vMoveRoboter,
 	                "Arm Right",
 	                ARM_TASK_STACKSIZE,
-	                1,
+	                (void*)1,
 	                ARM_TASK_PRIORITY,
-	                NULL);
+	                NULL);*/
 }
 
