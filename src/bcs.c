@@ -180,7 +180,7 @@ void bcs_task(void *pv_data)
             xSemaphoreGive(moveLeft ? bcs_left_start_semaphore : bcs_right_start_semaphore);
             display_log(DISPLAY_NEWLINE,"Dispatcher moves %s",moveLeft ? "left" : "right");
             bcs_send_msg(moveLeft ? &msg_cmd_disp_move_left : &msg_cmd_disp_move_right,0);
-            //  moveLeft = ! moveLeft;
+            moveLeft = ! moveLeft;
             vTaskDelay(2000); //let dispatcher move block away
             break;
 
