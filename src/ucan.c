@@ -40,27 +40,45 @@ static QueueHandle_t can_rx_queue;
 static msg_link_t message_map[SIZE_MAP];
 static uint16_t n_message_map;
 
+static SemaphoreHandle_t can_semaphore;
+
 /* ----- Functions -----------------------------------------------------------*/
 
 /* TASK: Write data from message queue to bus */
 static void ucan_write_data(void *pv_data)
 {
+    /* check if semaphore is already taken */
+    if(!xSemaphoreTake(can_semaphore, portMAX_DELAY)){
+        return;
+    }
+
     while(true) {
         xQueueReceive(can_tx_queue, &tx_msg, portMAX_DELAY); // get latest message from queue
         CARME_CAN_Write(&tx_msg); // Send message to CAN BUS
         display_log(DISPLAY_NEWLINE, "Sent msg_id 0x%03x to can", tx_msg.id); // Log message to display
     }
+
+    /* return semaphore */
+    xSemaphoreGive(can_semaphore);
 }
 
 /* TASK: Get can messages and send them to the according message queue */
 static void ucan_read_data(void *pv_data)
 {
+    /* check if semaphore is already taken */
+    if(!xSemaphoreTake(can_semaphore, portMAX_DELAY)){
+        return;
+    }
+
     while(true) {
         if (CARME_CAN_Read(&rx_msg) == CARME_NO_ERROR) {
             xQueueSend(can_rx_queue, &rx_msg, portMAX_DELAY);
             display_log(DISPLAY_NEWLINE, "Got msg_id 0x%03x", tx_msg.id); // Log message to display
         }
     }
+
+    /* return semaphore */
+    xSemaphoreGive(can_semaphore);
 }
 
 /* Reads incomming can messages from the rx_queue and forwards them according to the queue map */
@@ -75,7 +93,6 @@ static void ucan_dispatch_data(void *pv_data)
     }
 }
 
-
 /* setup acceptance filter */
 static void ucan_setup_acceptance_filter(void)
 {
@@ -84,19 +101,20 @@ static void ucan_setup_acceptance_filter(void)
     /* set the SJA1000 chip in running mode */
     CARME_CAN_SetMode(CARME_CAN_DF_RESET);
 
-    af.afm = MODE_SINGLE;   //Single filter
+    /* single filter */
+    af.afm = MODE_SINGLE;
 
     /* Unmask the important bits by setting them to Zero */
-    af.amr[0] = 0x00;       // unmask bit 0 - 7
-    af.amr[1] = 0x1f;       // unmask bit 8 - 6
-    af.amr[2] = 0xff;       // don't care in Mode with normal id length
-    af.amr[3] = 0xff;       // don't care in Mode with normal id length
+    af.amr[0] = 0x00; // unmask bit 0 - 7
+    af.amr[1] = 0x1f; // unmask bit 8 - 6
+    af.amr[2] = 0xff; // don't care in Mode with normal id length
+    af.amr[3] = 0xff; // don't care in Mode with normal id length
 
     /* Set the bits which have to be high */
-    af.acr[0] = 0xAA;       // 11001100
-    af.acr[1] = 0xA0;       // 11000000
-    af.acr[2] = 0x00;       // don't care in Mode with normal id length
-    af.acr[3] = 0x00;       // don't care in Mode with normal id length
+    af.acr[0] = 0xAA; // 11001100
+    af.acr[1] = 0xA0; // 11000000
+    af.acr[2] = 0x00; // don't care in Mode with normal id length
+    af.acr[3] = 0x00; // don't care in Mode with normal id length
 
     /* Set the AF */
     CARME_CAN_SetAcceptaceFilter(&af);
@@ -126,6 +144,7 @@ bool ucan_link_message_to_queue(uint16_t message_id, QueueHandle_t queue)
         return false;
     }
 
+    /* increment message counter, save message_id and the corresponding queue */
     message_map[n_message_map++].message_id = message_id;
     message_map[n_message_map].queue = queue;
 
@@ -151,7 +170,7 @@ bool ucan_init(void)
     CARME_CAN_SetMode(CARME_CAN_DF_NORMAL);
 
     /* Setup acceptance filter */
-    ucan_setup_acceptance_filter();
+    //ucan_setup_acceptance_filter();
 
     /* Clear the rx and tx CAN message */
     for(int i = 0; i < 7; i++) {
@@ -170,7 +189,6 @@ bool ucan_init(void)
 
     return true;
 }
-
 
 /* Send data to the output message queue */
 bool ucan_send_data(uint8_t n_data_bytes, uint16_t msg_id, const uint8_t *data)
