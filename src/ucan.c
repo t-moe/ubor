@@ -55,7 +55,7 @@ static void ucan_write_data(void *pv_data)
         if(xSemaphoreTake(can_semaphore, portMAX_DELAY) == pdTRUE) {
             CARME_CAN_Write(&tx_msg); // Send message to CAN BUS
             xSemaphoreGive(can_semaphore); //return semaphore
-            //display_log(DISPLAY_NEWLINE, "Sent msg_id 0x%03x to can", tx_msg.id); // Log message to display
+            display_log(DISPLAY_NEWLINE, "Sent msg_id 0x%03x to can", tx_msg.id); // Log message to display
         }
     }
 }
@@ -94,14 +94,14 @@ static void ucan_dispatch_data(void *pv_data)
             if((tmp_msg.id & message_map[i].mask) == message_map[i].message_id) {
                 queue = message_map[i].queue;
                 match = true;
-                display_log(DISPLAY_NEWLINE, "Dispatched msg_id 0x%03x", tmp_msg.id);
+                //display_log(DISPLAY_NEWLINE, "Dispatched msg_id 0x%03x", tmp_msg.id);
                 xQueueSend(queue, &tmp_msg, portMAX_DELAY); // forward it to the queue
             }
         }
 
         /* if there were no matches, drop messages */
         if(!match) {
-            display_log(DISPLAY_NEWLINE, "Dropped msg_id 0x%03x", tmp_msg.id);
+            //display_log(DISPLAY_NEWLINE, "Dropped msg_id 0x%03x", tmp_msg.id);
         }
     }
 }
