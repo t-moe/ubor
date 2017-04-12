@@ -32,11 +32,17 @@
 #include <memPoolService.h>
 #include <stdbool.h>
 
+#include <carme_io1.h>
+
 #include "arm.h"
 #include "ucan.h"
+#include "bcs.h"
 
 //----- Macros -----------------------------------------------------------------
-
+#define BUTTON_T0 0x01
+#define BUTTON_T1 0x02
+#define BUTTON_T2 0x03
+#define BUTTON_T3 0x04
 
 //----- Data types -------------------------------------------------------------
 
@@ -131,6 +137,15 @@ void vMoveRoboter(void *pvData) {
 
 			if (n == 3)
 			{
+
+                if(leftRightSel == 1)
+                {
+                	xSemaphoreTake(bcs_left_end_semaphore, portMAX_DELAY);
+                }
+                else
+                {
+                	xSemaphoreTake(bcs_right_end_semaphore, portMAX_DELAY);
+                }
                 xSemaphoreTake(mutexMiddlePosition, portMAX_DELAY);
                 //display_log(DISPLAY_NEWLINE, "take semaphore");
 			}
@@ -234,3 +249,96 @@ void init_arm()
 	                NULL);
 }
 
+
+void vManualArmMovment(void *pvData)
+{
+	uint8_t buttonData;
+	uint8_t switchData;
+
+	uint8_t posManuel[8] = {0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+	bool increment = false;
+	bool leftSelect = false;
+
+	CARME_CAN_MESSAGE pcMsgBufferRightM;
+	CARME_CAN_MESSAGE pcMsgBufferLeftM;
+
+	while(1)
+	{
+		CARME_IO1_BUTTON_Get(&buttonData);
+		CARME_IO1_SWITCH_Get(&switchData);
+
+
+
+		switch(buttonData){
+
+		case BUTTON_T0:
+			if(increment == true){
+				posManuel[1]++;
+			}
+			else{
+				posManuel[1]--;
+			}
+			break;
+
+		case BUTTON_T1:
+			if(increment == true){
+				posManuel[2]++;;
+			}
+			else{
+				posManuel[2]--;
+			}
+			break;
+
+		case BUTTON_T2:
+			if(increment == true){
+				posManuel[3]++;
+			}
+			else{
+				posManuel[3]--;
+			}
+			break;
+
+		case BUTTON_T3:
+			if(increment == true){
+				posManuel[4]++;
+			}
+			else
+			{
+				posManuel[4]--;
+			}
+			break;
+		default:
+			break;
+		}
+
+		// not sure if it's working because of uint8 and negative values
+		if(posManuel[1] == BASIS_MIN)     posManuel[1] = BASIS_MIN;
+		if(posManuel[1] == BASIS_MAX)     posManuel[1] = BASIS_MAX;
+
+		if(posManuel[2] == SHOULDER_MIN)  posManuel[2] = SHOULDER_MIN;
+	    if(posManuel[2] == SHOULDER_MAX)  posManuel[2] = SHOULDER_MAX;
+
+	    if(posManuel[3] == ELBOW_MIN)     posManuel[3] = ELBOW_MIN;
+	    if(posManuel[3] == ELBOW_MAX)     posManuel[3] = ELBOW_MAX;
+
+	    if(posManuel[4] == HAND_MIN)      posManuel[4] = HAND_MIN;
+	    if(posManuel[4] == HAND_MAX)      posManuel[4] = HAND_MAX;
+
+	    if(leftSelect == true){
+	    	ucan_send_data(COMAND_DLC, ROBOT_L_COMAND_REQUEST_ID, posManuel);
+	    	vTaskDelay(5);
+	    	ucan_send_data(STATUS_REQEST_DLC, ROBOT_L_STATUS_REQUEST_ID, status_request );
+	    	xQueueReceive(queueRobotLeft, (void *)&pcMsgBufferLeftM, portMAX_DELAY);
+	    	vTaskDelay(5);
+	    }
+	    else{
+	    	ucan_send_data(COMAND_DLC, ROBOT_R_COMAND_REQUEST_ID, posManuel);
+	        vTaskDelay(5);
+	    	ucan_send_data(STATUS_REQEST_DLC, ROBOT_R_STATUS_REQUEST_ID, status_request );
+
+	    	vTaskDelay(5);
+	    }
+
+	}
+
+}
