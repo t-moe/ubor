@@ -11,6 +11,8 @@
 #define STACKSIZE_TASK  256
 #define PRIORITY_TASK   2
 
+#define MAX_BLOCK_COUNT 2
+
 // ------------------ Implementation --------------
 
 typedef struct {
@@ -72,8 +74,6 @@ static void bcs_send_msg(const message_t* msg, uint16_t baseaddr)
 void bcs_task(void *pv_data)
 {
     enum belt_select belt = (enum belt_select)pv_data;
-    bool moveLeft = true;
-
 
     QueueHandle_t ucan_queue;
 
@@ -86,11 +86,14 @@ void bcs_task(void *pv_data)
         break;
     case belt_mid:
         ucan_queue = ucan_queue_mid;
-        xSemaphoreGive(bcs_mid_start_semaphore);
         break;
 
-
     }
+
+
+    //only for mid task
+    bool moveLeft = true; //whether the dispatcher should move left or right
+    uint8_t midStartWithoutMutexCount = 0; //The number of times we started the mid band without awaiting the mutex
 
 
     while(true) {
@@ -109,7 +112,14 @@ void bcs_task(void *pv_data)
             display_log(DISPLAY_NEWLINE,"Reset dispatcher");
             bcs_send_msg(&msg_cmd_disp_initial_pos,0);
 
-            xSemaphoreTake(bcs_mid_start_semaphore,portMAX_DELAY);
+            if(midStartWithoutMutexCount < MAX_BLOCK_COUNT) { //we are in the init phase
+                midStartWithoutMutexCount++;
+                xSemaphoreTake(bcs_mid_start_semaphore,2000); //try to aquire mutex anyway, in case it was already there
+                //if mutex could not be taken => go on (since we're in the init phase)
+            } else {
+                xSemaphoreTake(bcs_mid_start_semaphore,portMAX_DELAY);
+            }
+            
             break;
 
 
