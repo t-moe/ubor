@@ -96,10 +96,14 @@ void vMoveRoboter(void *pvData) {
 
 		mutexMiddlePosition = xSemaphoreCreateBinary();
 		xSemaphoreGive(mutexMiddlePosition);
+
 		queueRobotRight = xQueueCreate(MSG_QUEUE_SIZE, sizeof(CARME_CAN_MESSAGE));
 		ucan_link_message_to_queue(ROBOT_R_STATUS_RETURN_ID, queueRobotRight);
+
 		posArm = (uint8_t *)posArmRight;
 		id_arm_comand_request = ROBOT_R_COMAND_REQUEST_ID;
+
+		ucan_send_data(0, ROBOT_R_RESET_ID, 0);
 	}
 
 	if(leftRightSel == 1)
@@ -119,9 +123,14 @@ void vMoveRoboter(void *pvData) {
 				};
 	 	posArm = (uint8_t *)posArmLeft;
 	 	id_arm_comand_request = ROBOT_L_COMAND_REQUEST_ID;
+
 	 	queueRobotLeft = xQueueCreate(MSG_QUEUE_SIZE, sizeof(CARME_CAN_MESSAGE));
 	 	ucan_link_message_to_queue(ROBOT_L_STATUS_RETURN_ID, queueRobotLeft);
+
+		ucan_send_data(0, ROBOT_L_RESET_ID, 0 );
 	}
+
+	vTaskDelay(500); //needed for reset to be applied
 
 	while(1)
 	{
@@ -130,20 +139,33 @@ void vMoveRoboter(void *pvData) {
 		{
             display_log(DISPLAY_NEWLINE, "Going to position %u",n);
 
-			if(n == 5){
+			if(n == 6){ //before we want to access the mid position
 				display_log(DISPLAY_NEWLINE, "take semaphore");
-				while(1);
-				//xSemaphoreTake(mutexMiddlePosition, portMAX_DELAY);
+				xSemaphoreTake(mutexMiddlePosition, portMAX_DELAY);
 			}
 
-			if(n == 9){
-				display_log(DISPLAY_NEWLINE, "give semaphore");
-				xSemaphoreGive(mutexMiddlePosition);
-			}
+
+
+
 
 			ucan_send_data(COMAND_DLC, id_arm_comand_request, &posArm[n*8] );
-			vTaskDelay(20);
 			waitUntilPos(&posArm[n*8], leftRightSel);
+
+			if(n == 0) { //after we moved above the position were we want to grab Mitte
+				if(leftRightSel == 1) {
+					xSemaphoreTake(bcs_left_end_semaphore, portMAX_DELAY); 
+				} else {
+					xSemaphoreTake(bcs_right_end_semaphore, portMAX_DELAY); 
+				}
+			}
+
+			if(n == 9){ //after we moved out of the mid position
+				display_log(DISPLAY_NEWLINE, "give semaphore");
+				xSemaphoreGive(mutexMiddlePosition);
+				xSemaphoreGive(bcs_mid_start_semaphore);
+			}
+
+
 			vTaskDelay(TASK_DELAY);
 		}
 	}
@@ -171,8 +193,10 @@ void waitUntilPos(uint8_t *pos, int side)
 								temp[3],
 								temp[4],
 								temp[5]);*/
+			vTaskDelay(200);
 			ucan_send_data(STATUS_REQEST_DLC, ROBOT_R_STATUS_REQUEST_ID, status_request );
-			vTaskDelay(500);
+
+
 			xQueueReceive(queueRobotRight, (void *)&pcMsgBufferRight, portMAX_DELAY);
 			closeEnough = true;
             for(int i=1; i<6; i++){
@@ -201,8 +225,11 @@ void waitUntilPos(uint8_t *pos, int side)
 					temp[3],
 					temp[4],
 					temp[5]);*/
+
+			vTaskDelay(200);
+
 			ucan_send_data(STATUS_REQEST_DLC, ROBOT_L_STATUS_REQUEST_ID, status_request );
-			vTaskDelay(500);
+		
 			xQueueReceive(queueRobotLeft, (void *)&pcMsgBufferLeft, portMAX_DELAY);
 			closeEnough = true;
 			for(int i=1; i<6; i++){
@@ -222,9 +249,6 @@ void waitUntilPos(uint8_t *pos, int side)
 
 void init_arm()
 {
-
-	ucan_send_data(0, ROBOT_L_RESET_ID, 0 );
-	ucan_send_data(0, ROBOT_R_RESET_ID, 0);
 
 	xTaskCreate(vMoveRoboter,
 	                "Arm Left",

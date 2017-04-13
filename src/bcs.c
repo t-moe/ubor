@@ -56,6 +56,7 @@ static SemaphoreHandle_t bcs_left_start_semaphore; //Given by mid task, Taken by
 static SemaphoreHandle_t bcs_right_start_semaphore; //Given by mid task, Taken by right
 SemaphoreHandle_t bcs_left_end_semaphore; //Given by left task, Taken by Arm Left
 SemaphoreHandle_t bcs_right_end_semaphore; //Given by right task, taken by Arm Right
+SemaphoreHandle_t bcs_mid_start_semaphore; //Given by arm Tasks, taken by Mid task
 
 //Enum to destinguish the different tasks. The members point to the base address of the can endpoints
 enum belt_select {belt_left=0x110,
@@ -85,7 +86,7 @@ void bcs_task(void *pv_data)
         break;
     case belt_mid:
         ucan_queue = ucan_queue_mid;
-        //    xSemaphoreGive(bcs_left_end_semaphore);
+        xSemaphoreGive(bcs_mid_start_semaphore);
         break;
 
 
@@ -107,8 +108,8 @@ void bcs_task(void *pv_data)
         case belt_mid:
             display_log(DISPLAY_NEWLINE,"Reset dispatcher");
             bcs_send_msg(&msg_cmd_disp_initial_pos,0);
-            // Take something from the arms ?? (semaphore)
-            //xSemaphoreTake(bcs_left_end_semaphore,portMAX_DELAY);
+
+            xSemaphoreTake(bcs_mid_start_semaphore,portMAX_DELAY);
             break;
 
 
@@ -196,6 +197,7 @@ void bcs_init()
     bcs_left_end_semaphore = xSemaphoreCreateBinary();
     bcs_right_start_semaphore = xSemaphoreCreateBinary();
     bcs_right_end_semaphore = xSemaphoreCreateBinary();
+    bcs_mid_start_semaphore = xSemaphoreCreateBinary();
 
     xTaskCreate(bcs_task,"mid",STACKSIZE_TASK,(void*)belt_mid,PRIORITY_TASK,NULL);
     xTaskCreate(bcs_task,"left",STACKSIZE_TASK,(void*)belt_left,PRIORITY_TASK,NULL);
