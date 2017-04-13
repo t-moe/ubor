@@ -35,6 +35,13 @@
 #define ROBOT_R_COMAND_RETURN_ID  	0x163
 #define ROBOT_R_RESET_ID		  	0x16F
 
+#define MASK_SWITCH_0 				0x01
+#define MASK_SWITCH_1				0x02
+#define MASK_SWITCH_2				0x04
+#define MASK_SWITCH_3				0x08
+#define MASK_SWITCH_4				0x10
+
+
 // Min Max Values for roboter position
 #define BASIS_MIN		-75
 #define BASIS_MAX	 	 75
@@ -63,6 +70,7 @@
 uint32_t *pcMsgBuffer;
 //----- Function prototypes ----------------------------------------------------
 extern  void  vMoveRoboter(void *pvData);
+extern  void  vManualArmMovment(void *pvData);
 extern  void  waitUntilPos(uint8_t *pos, int side);
 extern  void  init_arm();
 

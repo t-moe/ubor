@@ -51,6 +51,7 @@
 //----- Data -------------------------------------------------------------------
 static QueueHandle_t queueRobotLeft;
 static QueueHandle_t queueRobotRight;
+static QueueHandle_t queueRobotManual;
 static SemaphoreHandle_t mutexMiddlePosition;
 CARME_CAN_MESSAGE pcMsgBufferRight;
 CARME_CAN_MESSAGE pcMsgBufferLeft;
@@ -233,7 +234,7 @@ void init_arm()
 
 	ucan_send_data(0, ROBOT_L_RESET_ID, 0 );
 	ucan_send_data(0, ROBOT_R_RESET_ID, 0);
-
+/*
 	xTaskCreate(vMoveRoboter,
 	                "Arm Left",
 	                ARM_TASK_STACKSIZE,
@@ -247,9 +248,26 @@ void init_arm()
 	                (void*)0,
 	                ARM_TASK_PRIORITY,
 	                NULL);
+	                */
+	xTaskCreate(vManualArmMovment,
+				"Manual Arm Movement",
+				ARM_TASK_STACKSIZE,
+				NULL,
+				ARM_TASK_PRIORITY,
+				NULL);
 }
 
 
+/*
+ * Switch 0: select left or right arm
+ * Switch 1: increment or decrement position value
+ * Switch 2: gripper open or close
+ *
+ * Button 0: change value of basis
+ * Button 1: change value of shoulder
+ * Button 2: change value of elbow
+ * Button 3: change value of hand
+*/
 void vManualArmMovment(void *pvData)
 {
 	uint8_t buttonData;
@@ -259,14 +277,36 @@ void vManualArmMovment(void *pvData)
 	bool increment = false;
 	bool leftSelect = false;
 
-	CARME_CAN_MESSAGE pcMsgBufferRightM;
-	CARME_CAN_MESSAGE pcMsgBufferLeftM;
+	CARME_CAN_MESSAGE pcMsgBuffer;
+	queueRobotManual = xQueueCreate(MSG_QUEUE_SIZE, sizeof(CARME_CAN_MESSAGE));
+	ucan_link_message_to_queue(ROBOT_R_STATUS_RETURN_ID, queueRobotManual);
+	ucan_link_message_to_queue(ROBOT_L_STATUS_RETURN_ID, queueRobotManual);
 
 	while(1)
 	{
 		CARME_IO1_BUTTON_Get(&buttonData);
 		CARME_IO1_SWITCH_Get(&switchData);
 
+		if( (switchData & MASK_SWITCH_0) != 0){
+			leftSelect = true;
+		}
+		else{
+			leftSelect = false;
+		}
+
+		if( (switchData & MASK_SWITCH_1 & MASK_SWITCH_1) != 0){
+			increment = true;
+		}
+		else{
+			increment = false;
+		}
+
+		if( (switchData & MASK_SWITCH_2) != 0){
+			posManuel[7] = GRIPPER_MAX;
+		}
+		else{
+			posManuel[7] = GRIPPER_MIN;
+		}
 
 
 		switch(buttonData){
@@ -312,6 +352,7 @@ void vManualArmMovment(void *pvData)
 		}
 
 		// not sure if it's working because of uint8 and negative values
+		// some defines are set with negative values
 		if(posManuel[1] == BASIS_MIN)     posManuel[1] = BASIS_MIN;
 		if(posManuel[1] == BASIS_MAX)     posManuel[1] = BASIS_MAX;
 
@@ -326,18 +367,25 @@ void vManualArmMovment(void *pvData)
 
 	    if(leftSelect == true){
 	    	ucan_send_data(COMAND_DLC, ROBOT_L_COMAND_REQUEST_ID, posManuel);
-	    	vTaskDelay(5);
+	    	vTaskDelay(50);
 	    	ucan_send_data(STATUS_REQEST_DLC, ROBOT_L_STATUS_REQUEST_ID, status_request );
-	    	xQueueReceive(queueRobotLeft, (void *)&pcMsgBufferLeftM, portMAX_DELAY);
-	    	vTaskDelay(5);
+	    	xQueueReceive(queueRobotManual, (void *)&pcMsgBuffer, portMAX_DELAY);
+	    	vTaskDelay(50);
 	    }
 	    else{
 	    	ucan_send_data(COMAND_DLC, ROBOT_R_COMAND_REQUEST_ID, posManuel);
-	        vTaskDelay(5);
+	        vTaskDelay(50);
 	    	ucan_send_data(STATUS_REQEST_DLC, ROBOT_R_STATUS_REQUEST_ID, status_request );
-
-	    	vTaskDelay(5);
+	    	xQueueReceive(queueRobotManual, (void *)&pcMsgBuffer, portMAX_DELAY);
+	    	vTaskDelay(50);
 	    }
+
+	    display_log(DISPLAY_NEWLINE,"Position: %x %x %x %x %x %x",pcMsgBufferRight.data[0],
+	    					pcMsgBuffer.data[1],
+	    					pcMsgBuffer.data[2],
+	    					pcMsgBuffer.data[3],
+	    					pcMsgBuffer.data[4],
+	    					pcMsgBuffer.data[5]);
 
 	}
 
