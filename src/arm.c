@@ -152,11 +152,13 @@ void vMoveRoboter(void *pvData) {
 			waitUntilPos(&posArm[n*8], leftRightSel);
 
 			if(n == 0) { //after we moved above the position were we want to grab Mitte
+				int8_t pos;
 				if(leftRightSel == 1) {
-					xSemaphoreTake(bcs_left_end_semaphore, portMAX_DELAY); 
+					xQueueReceive(bcs_left_end_queue,&pos,portMAX_DELAY);
 				} else {
-					xSemaphoreTake(bcs_right_end_semaphore, portMAX_DELAY); 
+					xQueueReceive(bcs_right_end_queue,&pos,portMAX_DELAY);
 				}
+				display_log(DISPLAY_NEWLINE,"block is at pos %d",pos);
 			}
 
 			if(n == 9){ //after we moved out of the mid position

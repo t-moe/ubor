@@ -54,8 +54,8 @@ static QueueHandle_t ucan_queue_right;
 //Semaphores
 static SemaphoreHandle_t bcs_left_start_semaphore; //Given by mid task, Taken by left
 static SemaphoreHandle_t bcs_right_start_semaphore; //Given by mid task, Taken by right
-SemaphoreHandle_t bcs_left_end_semaphore; //Given by left task, Taken by Arm Left
-SemaphoreHandle_t bcs_right_end_semaphore; //Given by right task, taken by Arm Right
+QueueHandle_t bcs_left_end_queue; //Given by left task, Taken by Arm Left
+QueueHandle_t bcs_right_end_queue; //Given by right task, taken by Arm Right
 SemaphoreHandle_t bcs_mid_start_semaphore; //Given by arm Tasks, taken by Mid task
 
 //Enum to destinguish the different tasks. The members point to the base address of the can endpoints
@@ -170,10 +170,10 @@ void bcs_task(void *pv_data)
 
         switch(belt) {
         case belt_left:
-            xSemaphoreGive(bcs_left_end_semaphore);
+            xQueueSend(bcs_left_end_queue,&(status->location),portMAX_DELAY);
             break;
         case belt_right:
-            xSemaphoreGive(bcs_right_end_semaphore);
+            xQueueSend(bcs_right_end_queue,&(status->location),portMAX_DELAY);
             break;
         case belt_mid:
             xSemaphoreGive(moveLeft ? bcs_left_start_semaphore : bcs_right_start_semaphore);
@@ -194,10 +194,11 @@ void bcs_task(void *pv_data)
 void bcs_init()
 {
     bcs_left_start_semaphore = xSemaphoreCreateBinary();
-    bcs_left_end_semaphore = xSemaphoreCreateBinary();
     bcs_right_start_semaphore = xSemaphoreCreateBinary();
-    bcs_right_end_semaphore = xSemaphoreCreateBinary();
     bcs_mid_start_semaphore = xSemaphoreCreateBinary();
+
+    bcs_left_end_queue = xQueueCreate(1,sizeof(int8_t));
+    bcs_right_end_queue = xQueueCreate(1,sizeof(int8_t));
 
     xTaskCreate(bcs_task,"mid",STACKSIZE_TASK,(void*)belt_mid,PRIORITY_TASK,NULL);
     xTaskCreate(bcs_task,"left",STACKSIZE_TASK,(void*)belt_left,PRIORITY_TASK,NULL);
