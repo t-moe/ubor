@@ -41,8 +41,8 @@
 //----- Macros -----------------------------------------------------------------
 #define BUTTON_T0 0x01
 #define BUTTON_T1 0x02
-#define BUTTON_T2 0x03
-#define BUTTON_T3 0x04
+#define BUTTON_T2 0x04
+#define BUTTON_T3 0x08
 
 //----- Data types -------------------------------------------------------------
 
@@ -81,20 +81,21 @@ void vMoveRoboter(void *pvData) {
 	{
 		static uint8_t posArmRight[10][8] = {
 			/*                      Arm	   B     S     E     H     G     x     x */
-			/*0 Nullposition     */ {0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-			/*1 StartPosition    */ {0x02, 0x00, 0xF0, 0x3A, 0xFD, 0x00, 0x00, 0x00},
-			/*2 Zp1 FB Links     */ {0x02, 0x00, 0xF0, 0x35, 0xFD, 0x00, 0x00, 0x00},
-			/*3 Zp2 FB Links     */ {0x02, 0x00, 0x00, 0x2E, 0xE8, 0x00, 0x00, 0x00},
-			/*4 G offen FB Links */ {0x02, 0x00, 0x19, 0x37, 0xE8, 0x01, 0x00, 0x00},
-			/*5 G zu FB Links    */ {0x02, 0x00, 0x19, 0x37, 0xE8, 0x00, 0x00, 0x00},
-			/*6 Zp1 FB Mitte     */ {0x02, 0xD3, 0xF0, 0x35, 0xFD, 0x00, 0x00, 0x00},
-			/*7 Zp2 FB Mitte     */ {0x02, 0xD3, 0x00, 0x2E, 0xE8, 0x00, 0x00, 0x00},
-			/*8 G zu FB Mitte    */ {0x02, 0xD3, 0x19, 0x37, 0xE8, 0x00, 0x00, 0x00},
-			/*9 G offen FB Mitte */ {0x02, 0xD3, 0x19, 0x37, 0xE8, 0x01, 0x00, 0x00},
+			/*0 Nullposition     */ {0x02, 0x00, 0x14, 0x37, 0xED, 0x01, 0x00, 0x00},
+			/*1 StartPosition    */ {0x02, 0x00, 0x17, 0x36, 0xED, 0x01, 0x00, 0x00},
+			/*2 Zp1 FB Links     */ {0x02, 0x00, 0x17, 0x36, 0xED, 0x00, 0x00, 0x00},
+			/*3 Zp2 FB Links     */ {0x02, 0x00, 0x17, 0x2E, 0xED, 0x00, 0x00, 0x00},
+			/*4 G offen FB Links */ {0x02, 0xEE, 0x17, 0x2E, 0xED, 0x00, 0x00, 0x00},
+			/*5 G zu FB Links    */ {0x02, 0xD3, 0x0E, 0x41, 0xED, 0x00, 0x00, 0x00},
+			/*6 Zp1 FB Mitte     */ {0x02, 0xD3, 0x17, 0x37, 0xED, 0x00, 0x00, 0x00},
+			/*7 Zp2 FB Mitte     */ {0x02, 0xD3, 0x17, 0x37, 0xED, 0x01, 0x00, 0x00},
+			/*8 G zu FB Mitte    */ {0x02, 0xD3, 0x13, 0x37, 0xED, 0x01, 0x00, 0x00},
+			/*9 G offen FB Mitte */ {0x02, 0xD3, 0x10, 0x42, 0xED, 0x01, 0x00, 0x00},
 			};
 
 
-		mutexMiddlePosition = xSemaphoreCreateMutex();
+		mutexMiddlePosition = xSemaphoreCreateBinary();
+		xSemaphoreGive(mutexMiddlePosition);
 		queueRobotRight = xQueueCreate(MSG_QUEUE_SIZE, sizeof(CARME_CAN_MESSAGE));
 		ucan_link_message_to_queue(ROBOT_R_STATUS_RETURN_ID, queueRobotRight);
 		posArm = (uint8_t *)posArmRight;
@@ -105,16 +106,16 @@ void vMoveRoboter(void *pvData) {
 	{
 	 	static uint8_t posArmLeft[10][8] = {
 				/*                      Arm	   B     S     E     H     G     x     x */
-				/*0 Nullposition     */ {0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-				/*1 StartPosition    */ {0x02, 0x00, 0xF0, 0x3A, 0xFD, 0x00, 0x00, 0x00},
-				/*2 Zp1 FB Rechts    */ {0x02, 0x00, 0xF0, 0x35, 0xFD, 0x00, 0x00, 0x00},
-				/*3 Zp2 FB Rechts    */ {0x02, 0x00, 0x00, 0x2E, 0xE8, 0x00, 0x00, 0x00},
-				/*4 G offen FB Rechts*/ {0x02, 0x00, 0x19, 0x37, 0xE8, 0x01, 0x00, 0x00},
-				/*5 G zu FB Rechts   */ {0x02, 0x00, 0x19, 0x37, 0xE8, 0x00, 0x00, 0x00},
-				/*6 Zp1 FB Mitte     */ {0x02, 0x2D, 0xF0, 0x35, 0xFD, 0x00, 0x00, 0x00},
-				/*7 Zp2 FB Mitte     */ {0x02, 0x2D, 0x00, 0x2E, 0xE8, 0x00, 0x00, 0x00},
-				/*8 G zu FB Mitte    */ {0x02, 0x2D, 0x19, 0x37, 0xE8, 0x00, 0x00, 0x00},
-				/*9 G offen FB Mitte */ {0x02, 0x2D, 0x19, 0x37, 0xE8, 0x01, 0x00, 0x00},
+				/*0 Warte            */ {0x02, 0x00, 0x14, 0x34, 0xED, 0x01, 0x00, 0x00},
+				/*1 StartPosition    */ {0x02, 0x00, 0x17, 0x35, 0xED, 0x01, 0x00, 0x00},
+				/*2 Zp1 FB Rechts    */ {0x02, 0x00, 0x17, 0x35, 0xED, 0x00, 0x00, 0x00},
+				/*3 Zp2 FB Rechts    */ {0x02, 0x00, 0x12, 0x35, 0xED, 0x00, 0x00, 0x00},
+				/*4 G offen FB Rechts*/ {0x02, 0x17, 0x12, 0x35, 0xED, 0x00, 0x00, 0x00},
+				/*5 G zu FB Rechts   */ {0x02, 0x2D, 0x0C, 0x43, 0xED, 0x00, 0x00, 0x00},
+				/*6 Zp1 FB Mitte     */ {0x02, 0x2D, 0x17, 0x35, 0xED, 0x00, 0x00, 0x00},
+				/*7 Zp2 FB Mitte     */ {0x02, 0x2D, 0x17, 0x35, 0xED, 0x01, 0x00, 0x00},
+				/*8 G zu FB Mitte    */ {0x02, 0x2D, 0x15, 0x35, 0xED, 0x01, 0x00, 0x00},
+				/*9 G offen FB Mitte */ {0x02, 0x2D, 0x0D, 0x41, 0xED, 0x01, 0x00, 0x00},
 				};
 	 	posArm = (uint8_t *)posArmLeft;
 	 	id_arm_comand_request = ROBOT_L_COMAND_REQUEST_ID;
@@ -129,29 +130,19 @@ void vMoveRoboter(void *pvData) {
 		{
             display_log(DISPLAY_NEWLINE, "Going to position %u",n);
 
-			if(n == 1)
-			{
-				xSemaphoreGive(mutexMiddlePosition);
-                //display_log(DISPLAY_NEWLINE, "give semaphore");
+			if(n == 5){
+				display_log(DISPLAY_NEWLINE, "take semaphore");
+				while(1);
+				//xSemaphoreTake(mutexMiddlePosition, portMAX_DELAY);
 			}
 
-
-			if (n == 3)
-			{
-
-                if(leftRightSel == 1)
-                {
-                	xSemaphoreTake(bcs_left_end_semaphore, portMAX_DELAY);
-                }
-                else
-                {
-                	xSemaphoreTake(bcs_right_end_semaphore, portMAX_DELAY);
-                }
-                xSemaphoreTake(mutexMiddlePosition, portMAX_DELAY);
-                //display_log(DISPLAY_NEWLINE, "take semaphore");
+			if(n == 9){
+				display_log(DISPLAY_NEWLINE, "give semaphore");
+				xSemaphoreGive(mutexMiddlePosition);
 			}
 
 			ucan_send_data(COMAND_DLC, id_arm_comand_request, &posArm[n*8] );
+			vTaskDelay(20);
 			waitUntilPos(&posArm[n*8], leftRightSel);
 			vTaskDelay(TASK_DELAY);
 		}
@@ -215,7 +206,7 @@ void waitUntilPos(uint8_t *pos, int side)
 			xQueueReceive(queueRobotLeft, (void *)&pcMsgBufferLeft, portMAX_DELAY);
 			closeEnough = true;
 			for(int i=1; i<6; i++){
-									if(abs(temp[i]-pcMsgBufferLeft.data[i])>0x02){
+									if(abs(temp[i]-pcMsgBufferLeft.data[i])>0x05){
 									closeEnough = false;
 									break;
 									}
@@ -234,7 +225,7 @@ void init_arm()
 
 	ucan_send_data(0, ROBOT_L_RESET_ID, 0 );
 	ucan_send_data(0, ROBOT_R_RESET_ID, 0);
-/*
+
 	xTaskCreate(vMoveRoboter,
 	                "Arm Left",
 	                ARM_TASK_STACKSIZE,
@@ -248,13 +239,13 @@ void init_arm()
 	                (void*)0,
 	                ARM_TASK_PRIORITY,
 	                NULL);
-	                */
+/*
 	xTaskCreate(vManualArmMovment,
 				"Manual Arm Movement",
 				ARM_TASK_STACKSIZE,
 				NULL,
 				ARM_TASK_PRIORITY,
-				NULL);
+				NULL);*/
 }
 
 
@@ -268,6 +259,8 @@ void init_arm()
  * Button 2: change value of elbow
  * Button 3: change value of hand
 */
+
+
 void vManualArmMovment(void *pvData)
 {
 	uint8_t buttonData;
@@ -294,7 +287,7 @@ void vManualArmMovment(void *pvData)
 			leftSelect = false;
 		}
 
-		if( (switchData & MASK_SWITCH_1 & MASK_SWITCH_1) != 0){
+		if( (switchData & MASK_SWITCH_1 ) != 0){
 			increment = true;
 		}
 		else{
@@ -302,10 +295,10 @@ void vManualArmMovment(void *pvData)
 		}
 
 		if( (switchData & MASK_SWITCH_2) != 0){
-			posManuel[7] = GRIPPER_MAX;
+			posManuel[5] = GRIPPER_MAX;
 		}
 		else{
-			posManuel[7] = GRIPPER_MIN;
+			posManuel[5] = GRIPPER_MIN;
 		}
 
 
@@ -351,33 +344,21 @@ void vManualArmMovment(void *pvData)
 			break;
 		}
 
-		// not sure if it's working because of uint8 and negative values
-		// some defines are set with negative values
-		if(posManuel[1] == BASIS_MIN)     posManuel[1] = BASIS_MIN;
-		if(posManuel[1] == BASIS_MAX)     posManuel[1] = BASIS_MAX;
-
-		if(posManuel[2] == SHOULDER_MIN)  posManuel[2] = SHOULDER_MIN;
-	    if(posManuel[2] == SHOULDER_MAX)  posManuel[2] = SHOULDER_MAX;
-
-	    if(posManuel[3] == ELBOW_MIN)     posManuel[3] = ELBOW_MIN;
-	    if(posManuel[3] == ELBOW_MAX)     posManuel[3] = ELBOW_MAX;
-
-	    if(posManuel[4] == HAND_MIN)      posManuel[4] = HAND_MIN;
-	    if(posManuel[4] == HAND_MAX)      posManuel[4] = HAND_MAX;
 
 	    if(leftSelect == true){
 	    	ucan_send_data(COMAND_DLC, ROBOT_L_COMAND_REQUEST_ID, posManuel);
-	    	vTaskDelay(50);
+	    	vTaskDelay(20);
 	    	ucan_send_data(STATUS_REQEST_DLC, ROBOT_L_STATUS_REQUEST_ID, status_request );
+	    	vTaskDelay(20);
 	    	xQueueReceive(queueRobotManual, (void *)&pcMsgBuffer, portMAX_DELAY);
-	    	vTaskDelay(50);
+	    	vTaskDelay(20);
 	    }
 	    else{
 	    	ucan_send_data(COMAND_DLC, ROBOT_R_COMAND_REQUEST_ID, posManuel);
-	        vTaskDelay(50);
+	        vTaskDelay(20);
 	    	ucan_send_data(STATUS_REQEST_DLC, ROBOT_R_STATUS_REQUEST_ID, status_request );
 	    	xQueueReceive(queueRobotManual, (void *)&pcMsgBuffer, portMAX_DELAY);
-	    	vTaskDelay(50);
+	    	vTaskDelay(20);
 	    }
 
 	    display_log(DISPLAY_NEWLINE,"Position: %x %x %x %x %x %x",pcMsgBufferRight.data[0],
@@ -390,3 +371,4 @@ void vManualArmMovment(void *pvData)
 	}
 
 }
+
