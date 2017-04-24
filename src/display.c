@@ -11,7 +11,7 @@
 
 // -------------------- Configuration  ------------
 #define STACKSIZE_TASK        ( 256 )
-#define PRIORITY_TASK         ( 3 ) //  low priority number denotes low priority task
+#define PRIORITY_TASK         ( 5 ) //  low priority number denotes low priority task
 
 #define QUEUE_SIZE 10
 

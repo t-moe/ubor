@@ -10,12 +10,14 @@
 #include "bcs.h"
 
 // -------------------- Configuration  ------------
-#define STACKSIZE_TASK  256
+#define STACKSIZE_TASK  512
 #define PRIORITY_TASK   2
 
 #define MAX_BLOCK_COUNT 4
 
 // ------------------ Implementation --------------
+
+#define SWITCH 	((volatile unsigned char*)(0x6C000400))
 
 typedef struct {
     uint16_t subid;
@@ -60,7 +62,7 @@ static SemaphoreHandle_t bcs_left_start_semaphore; //Given by mid task, Taken by
 static SemaphoreHandle_t bcs_mid_start_semaphore; //Given by arm Tasks, taken by Mid task
 static SemaphoreHandle_t bcs_right_start_semaphore; //Given by mid task, Taken by right
 static SemaphoreHandle_t bcs_left_free_semaphore; //Given by left task, Taken by arm task
-static SemaphoreHandle_t bcs_mid_free_semaphore; //Given by mid task, Taken by left/right task
+static SemaphoreHandle_t bcs_mid_band_mutex; //taken by mid task, when the band is active.
 static SemaphoreHandle_t bcs_right_free_semaphore; //Given by right task, Taken by arm task
 
 static QueueHandle_t bcs_left_end_queue; //Given by left task, Taken by Arm Left
@@ -109,7 +111,7 @@ static status_t* bcs_await_block(enum belt_select belt, QueueHandle_t ucan_queue
         vTaskDelay(100);
 
         /* Timeout */
-        if(wait_count >= 100) {
+        if(wait_count >= 20) {
             bcs_send_msg(&msg_cmd_done,belt);
             display_log(statR,"Waiting on block (%u): Aborted",wait_count);
             return NULL;
@@ -128,7 +130,9 @@ void bcs_prepare_drop(enum belt_select belt) {
         xSemaphoreTake(bcs_right_free_semaphore,portMAX_DELAY);
         break;
     case belt_mid:
-        xSemaphoreTake(bcs_mid_free_semaphore,portMAX_DELAY);
+        display_log(DISPLAY_NEWLINE,"aqcuing mutex mid (arm)");
+        xSemaphoreTake(bcs_mid_band_mutex,portMAX_DELAY);
+        display_log(DISPLAY_NEWLINE,"aqcuired mutex mid (arm)");
         break;
 
     }
@@ -143,6 +147,9 @@ void bcs_signal_dropped(enum belt_select belt) {
         xSemaphoreGive(bcs_right_start_semaphore);
         break;
     case belt_mid:
+        display_log(DISPLAY_NEWLINE,"releasing mutex mid (drop)");
+        xSemaphoreGive(bcs_mid_band_mutex);
+        display_log(DISPLAY_NEWLINE,"released mutex mid (drop)");
         xSemaphoreGive(bcs_mid_start_semaphore);
         break;
 
@@ -158,10 +165,46 @@ void bcs_signal_band_free(enum belt_select belt) {
         xSemaphoreGive(bcs_right_free_semaphore);
         break;
     case belt_mid:
-        xSemaphoreGive(bcs_mid_free_semaphore);
+        display_log(DISPLAY_NEWLINE,"releasing mutex mid (band)");
+        xSemaphoreGive(bcs_mid_band_mutex);
+        display_log(DISPLAY_NEWLINE,"released mutex mid (band)");
         break;
 
     }
+}
+
+void bcs_await_drop(enum belt_select belt, bool allow_skip) {
+
+    switch(belt) {
+    case belt_left:
+        xSemaphoreTake(bcs_left_start_semaphore,portMAX_DELAY);
+        break;
+    case belt_right:
+        xSemaphoreTake(bcs_right_start_semaphore,portMAX_DELAY);
+        break;
+    case belt_mid:
+        display_log(DISPLAY_NEWLINE,"Reset dispatcher");
+        bcs_send_msg(&msg_cmd_disp_initial_pos,0);
+
+        display_log(DISPLAY_NEWLINE,"aqcuing mutex mid (band");
+        xSemaphoreTake(bcs_mid_band_mutex,portMAX_DELAY);
+        display_log(DISPLAY_NEWLINE,"aqcuired mutex mid (band");
+
+        if(allow_skip) { //we are in the init phase
+            display_log(DISPLAY_NEWLINE,"aqcuing mutex mid start (w timeout)");
+            xSemaphoreTake(bcs_mid_start_semaphore,2000); //try to aquire mutex anyway, in case it was already there
+            //if mutex could not be taken => go on (since we're in the init phase)
+        } else {
+            display_log(DISPLAY_NEWLINE,"aqcuing mutex mid start (w/o timeout)");
+            xSemaphoreTake(bcs_mid_start_semaphore,portMAX_DELAY);
+        }
+        display_log(DISPLAY_NEWLINE,"aqcuired mutex mid start");
+
+
+        break;
+
+    }
+
 }
 
 int8_t bcs_grab(enum belt_select belt) {
@@ -196,8 +239,7 @@ void bcs_task(void *pv_data)
 
     //only for mid task
     bool moveLeft = true; //whether the dispatcher should move left or right
-    uint8_t midStartWithoutMutexCount = 0; //The number of times we started the mid band without awaiting the mutex
-
+    bool initPhase = true; //wheter we're in the init phase and are allowed to skip mutexes.
 
     while(true) {
         //----- Step 0: Reset band
@@ -205,28 +247,7 @@ void bcs_task(void *pv_data)
         display_log(DISPLAY_NEWLINE,"reset band");
 
         //----- Step 1: Wait on a block (take semaphore), before we start the band ------------------
-        switch(belt) {
-        case belt_left:
-            xSemaphoreTake(bcs_left_start_semaphore,portMAX_DELAY);
-            break;
-        case belt_right:
-            xSemaphoreTake(bcs_right_start_semaphore,portMAX_DELAY);
-            break;
-        case belt_mid:
-            display_log(DISPLAY_NEWLINE,"Reset dispatcher");
-            bcs_send_msg(&msg_cmd_disp_initial_pos,0);
-
-            if(midStartWithoutMutexCount < MAX_BLOCK_COUNT) { //we are in the init phase
-                midStartWithoutMutexCount++;
-                xSemaphoreTake(bcs_mid_start_semaphore,2000); //try to aquire mutex anyway, in case it was already there
-                //if mutex could not be taken => go on (since we're in the init phase)
-            } else {
-                xSemaphoreTake(bcs_mid_start_semaphore,portMAX_DELAY);
-            }
-            
-            break;
-
-        }
+        bcs_await_drop(belt, initPhase);
 
         //----- Step 2: Start the band, and wait till we detect the block
         bcs_send_msg(&msg_cmd_start,belt);
@@ -236,12 +257,24 @@ void bcs_task(void *pv_data)
         CARME_CAN_MESSAGE tmp_message;
         status_t* status = bcs_await_block(belt,ucan_queue,&tmp_message);
         if(status==NULL){ //timeout
-            while(true);
-            //TODO: Listen on button press
+            if(belt == belt_mid) {
+                initPhase = false; //no longer in init phase
+                bcs_signal_band_free(belt_mid);
+                bcs_send_msg(&msg_cmd_done,belt_mid);
+                continue;
+            } else {
+                bcs_send_msg(&msg_cmd_done,belt);
+                while(true);
+                //TODO: Listen on button press
+            }
+
         }
 
         //----- Step 3 (only mid band): Move the dispatcher so we don't interfere with the coming block
         if(belt== belt_mid) {
+            if(*SWITCH&0x01) { //Manual Direction selection
+                moveLeft = *SWITCH&0x02; //read direction from switch
+            }
             display_log(DISPLAY_NEWLINE,"Making dispatcher ready for moving %s",moveLeft ? "left" : "right");
             bcs_send_msg(moveLeft ? &msg_cmd_disp_start_left : &msg_cmd_disp_start_right,0);
         }
@@ -265,16 +298,13 @@ void bcs_task(void *pv_data)
 
             bcs_signal_dropped(moveLeft ? belt_left : belt_right);
             moveLeft = ! moveLeft;
+
+            bcs_signal_band_free(belt_mid);
             break;
-
-
         }
 
         //---- Step 5: Tell the band that we're finished
         bcs_send_msg(&msg_cmd_done,belt);
-        if(belt == belt_mid) {
-            bcs_signal_band_free(belt_mid);
-        }
     }
 }
 
@@ -285,11 +315,11 @@ void bcs_init()
     bcs_mid_start_semaphore = xSemaphoreCreateBinary();
 
     bcs_left_free_semaphore = xSemaphoreCreateBinary();
-    bcs_mid_free_semaphore = xSemaphoreCreateBinary();
+    bcs_mid_band_mutex = xSemaphoreCreateBinary();
     bcs_right_free_semaphore = xSemaphoreCreateBinary();
     xSemaphoreGive(bcs_left_free_semaphore);
-    //xSemaphoreGive(bcs_mid_free_semaphore);
     xSemaphoreGive(bcs_right_free_semaphore);
+    xSemaphoreGive(bcs_mid_band_mutex );
 
     bcs_left_end_queue = xQueueCreate(1,sizeof(int8_t));
     bcs_right_end_queue = xQueueCreate(1,sizeof(int8_t));

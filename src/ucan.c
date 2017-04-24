@@ -22,7 +22,7 @@
 #define SIZE_MAP        100 // The size of the message link map
 #define QUEUE_SIZE      10  // Length of the data queues
 #define STACKSIZE_TASK  256 // Stacksize for new tasks
-#define PRIORITY_TASK   2   // Taskpriority
+#define PRIORITY_TASK  4   // Taskpriority
 
 /* ----- Datatypes -----------------------------------------------------------*/
 typedef struct msg_link_s {
