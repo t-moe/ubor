@@ -159,6 +159,10 @@ void vMoveRoboter(void *pvData) {
 				display_log(DISPLAY_NEWLINE,"block is at pos %d",pos);
 			}
 
+            if(n==3) {
+                bcs_signal_band_free(leftRightSel == 1 ? belt_left : belt_right);
+            }
+
             if(n== 8) { //after we dropped a block
                 bcs_signal_dropped(belt_mid);
             }

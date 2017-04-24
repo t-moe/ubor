@@ -9,4 +9,5 @@ enum belt_select {belt_left=0x110,
 int8_t bcs_grab(enum belt_select belt);
 void bcs_prepare_drop(enum belt_select belt);
 void bcs_signal_dropped(enum belt_select belt);
+void bcs_signal_band_free(enum belt_select belt);
 void bcs_init();

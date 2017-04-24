@@ -13,7 +13,7 @@
 #define STACKSIZE_TASK  256
 #define PRIORITY_TASK   2
 
-#define MAX_BLOCK_COUNT 2
+#define MAX_BLOCK_COUNT 4
 
 // ------------------ Implementation --------------
 
@@ -261,10 +261,10 @@ void bcs_task(void *pv_data)
 
             display_log(DISPLAY_NEWLINE,"Dispatcher moves %s",moveLeft ? "left" : "right");
             bcs_send_msg(moveLeft ? &msg_cmd_disp_move_left : &msg_cmd_disp_move_right,0);
-            moveLeft = ! moveLeft;
-            vTaskDelay(2000); //let dispatcher move block away
+            vTaskDelay(1000); //let dispatcher move block away
 
             bcs_signal_dropped(moveLeft ? belt_left : belt_right);
+            moveLeft = ! moveLeft;
             break;
 
 
@@ -272,7 +272,9 @@ void bcs_task(void *pv_data)
 
         //---- Step 5: Tell the band that we're finished
         bcs_send_msg(&msg_cmd_done,belt);
-        bcs_signal_band_free(belt);
+        if(belt == belt_mid) {
+            bcs_signal_band_free(belt_mid);
+        }
     }
 }
 
@@ -286,7 +288,7 @@ void bcs_init()
     bcs_mid_free_semaphore = xSemaphoreCreateBinary();
     bcs_right_free_semaphore = xSemaphoreCreateBinary();
     xSemaphoreGive(bcs_left_free_semaphore);
-    xSemaphoreGive(bcs_mid_free_semaphore);
+    //xSemaphoreGive(bcs_mid_free_semaphore);
     xSemaphoreGive(bcs_right_free_semaphore);
 
     bcs_left_end_queue = xQueueCreate(1,sizeof(int8_t));
