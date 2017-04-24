@@ -71,6 +71,48 @@ static void bcs_send_msg(const message_t* msg, uint16_t baseaddr)
     vTaskDelay(5);
 }
 
+
+static status_t* bcs_await_block(enum belt_select belt, QueueHandle_t ucan_queue, CARME_CAN_MESSAGE* tmp_message)
+{
+    uint8_t statR = display_log(DISPLAY_NEWLINE,"Waiting on block...");
+    uint16_t wait_count = 0;
+    status_t* status;
+
+    /* Wait until the block is fully detected */
+    while(true) {
+
+        /* Request status */
+        bcs_send_msg(&msg_status_request,belt);
+
+        /* Wait on status response */
+        do {
+            if(xQueueReceive(ucan_queue,tmp_message,4000)==pdFALSE) {
+                wait_count++;
+                display_log(statR,"Waiting on block (%u): timeout", wait_count);
+            }
+        } while(tmp_message->id != belt+msg_status_response_id); //repeat until correct response message arrives
+
+        status = (status_t*)&(tmp_message->data);
+        wait_count++;
+
+        /* Block detected */
+        if(status->detection == 3) {
+            display_log(statR,"Waiting on block. Found! position %04x location %d", status->position, status->location );
+            return status;
+        }
+
+        display_log(statR,"Waiting on block (%u): detection: %u pos: %04x",wait_count,status->detection, status->position);
+        vTaskDelay(100);
+
+        /* Timeout */
+        if(wait_count >= 100) {
+            bcs_send_msg(&msg_cmd_done,belt);
+            display_log(statR,"Waiting on block (%u): Aborted",wait_count);
+            return NULL;
+        }
+    }
+}
+
 void bcs_task(void *pv_data)
 {
     enum belt_select belt = (enum belt_select)pv_data;
@@ -97,10 +139,11 @@ void bcs_task(void *pv_data)
 
 
     while(true) {
+        //----- Step 0: Reset band
         bcs_send_msg(&msg_cmd_reset,belt);
         display_log(DISPLAY_NEWLINE,"reset band");
 
-
+        //----- Step 1: Wait on a block (take semaphore), before we start the band ------------------
         switch(belt) {
         case belt_left:
             xSemaphoreTake(bcs_left_start_semaphore,portMAX_DELAY);
@@ -122,54 +165,21 @@ void bcs_task(void *pv_data)
             
             break;
 
-
         }
 
-
+        //----- Step 2: Start the band, and wait till we detect the block
         bcs_send_msg(&msg_cmd_start,belt);
         bcs_send_msg(&msg_cmd_stoppos,belt);
         display_log(DISPLAY_NEWLINE,"start band");
 
-        uint8_t statR = display_log(DISPLAY_NEWLINE,"Waiting on block...");
-        uint16_t wait_count = 0;
-        status_t* status;
         CARME_CAN_MESSAGE tmp_message;
-
-        /* Wait until the block is fully detected */
-        while(true) {
-
-            /* Request status */
-            bcs_send_msg(&msg_status_request,belt);
-
-            /* Wait on status response */
-            do {
-                if(xQueueReceive(ucan_queue,&tmp_message,4000)==pdFALSE) {
-                    wait_count++;
-                    display_log(statR,"Waiting on block (%u): timeout", wait_count);
-                }
-            } while(tmp_message.id != belt+msg_status_response_id); //repeat until correct response message arrives
-
-            status = (status_t*)&(tmp_message.data);
-            wait_count++;
-
-            /* Block detected */
-            if(status->detection == 3) {
-                display_log(statR,"Waiting on block. Found! position %04x location %d", status->position, status->location );
-                break;
-            }
-
-            display_log(statR,"Waiting on block (%u): detection: %u pos: %04x",wait_count,status->detection, status->position);
-            vTaskDelay(100);
-
-            /* Timeout */
-            if(wait_count >= 100) {
-                bcs_send_msg(&msg_cmd_done,belt);
-                display_log(statR,"Waiting on block (%u): Aborted",wait_count);
-                while(true);
-                //TODO: Listen on button press
-            }
+        status_t* status = bcs_await_block(belt,ucan_queue,&tmp_message);
+        if(status==NULL){ //timeout
+            while(true);
+            //TODO: Listen on button press
         }
 
+        //----- Step 3 (only mid band): Move the dispatcher so we don't interfere with the coming block
         if(belt== belt_mid) {
             display_log(DISPLAY_NEWLINE,"Making dispatcher ready for moving %s",moveLeft ? "left" : "right");
             bcs_send_msg(moveLeft ? &msg_cmd_disp_start_left : &msg_cmd_disp_start_right,0);
@@ -177,7 +187,7 @@ void bcs_task(void *pv_data)
         vTaskDelay(2000); //let block move to the end of the band
 
 
-
+        //----- Step 4: Mark the block ready for further processing (give semaphore) and optionally move the dispatcher (only mid band).
         switch(belt) {
         case belt_left:
             xQueueSend(bcs_left_end_queue,&(status->location),portMAX_DELAY);
@@ -196,7 +206,7 @@ void bcs_task(void *pv_data)
 
         }
 
-
+        //---- Step 5: Tell the band that we're finished
         bcs_send_msg(&msg_cmd_done,belt);
     }
 }
