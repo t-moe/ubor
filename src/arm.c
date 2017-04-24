@@ -74,6 +74,7 @@ void vMoveRoboter(void *pvData) {
 
 	int leftRightSel = (int)pvData;
 	uint8_t *posArm;
+	uint8_t *timosWish;
 	int id_arm_comand_request;
 
 	/* Init */
@@ -93,7 +94,13 @@ void vMoveRoboter(void *pvData) {
 			/*9 G offen FB Mitte */ {0x02, 0xD2, 0x00, 0x36, 0x21, 0x01, 0x00, 0x00},
                                     {0x02, 0xEE, 0x00, 0x36, 0x21, 0x01, 0x00, 0x00},
 			};
-
+        static uint8_t timosWishRight[5][8] = {
+                					{0x02, 0x00, 0x1b, 0x21, 0x10, 0x01, 0x00, 0x00}, // holen aussen
+                					{0x02, 0x00, 0x18, 0x25, 0x10, 0x01, 0x00, 0x00}, // holen aussen mitte
+                					{0x02, 0x00, 0x1a, 0x22, 0x18, 0x01, 0x00, 0x00}, // holen mitte
+                					{0x02, 0x00, 0x18, 0x24, 0x18, 0x01, 0x00, 0x00}, // holen innen mitte
+                					{0x02, 0x00, 0x18, 0x26, 0x18, 0x01, 0x00, 0x00}, // holen innen
+        							};
 
 		mutexMiddlePosition = xSemaphoreCreateBinary();
 		xSemaphoreGive(mutexMiddlePosition);
@@ -102,6 +109,7 @@ void vMoveRoboter(void *pvData) {
 		ucan_link_message_to_queue(ROBOT_R_STATUS_RETURN_ID, queueRobotRight);
 
 		posArm = (uint8_t *)posArmRight;
+		timosWish = (uint8_t *)timosWishRight;
 		id_arm_comand_request = ROBOT_R_COMAND_REQUEST_ID;
 
 		ucan_send_data(0, ROBOT_R_RESET_ID, 0);
@@ -123,7 +131,15 @@ void vMoveRoboter(void *pvData) {
 	 									{0x02, 0x2D, 0x00, 0x36, 0x21, 0x01, 0x00, 0x00}, //Arm ausserhalb mitte
                                         {0x02, 0x12, 0x00, 0x36, 0x21, 0x01, 0x00, 0x00}, //Arm ausserhalb mitte
 				};
+        static uint8_t timosWishLeft[5][8] = {
+        								{0x02, 0x00, 0x17, 0x24, 0x1e, 0x01, 0x00, 0x00}, // holen innen
+        								{0x02, 0x00, 0x19, 0x21, 0x1e, 0x01, 0x00, 0x00}, // holen innen mitte
+        								{0x02, 0x00, 0x1d, 0x1a, 0x21, 0x01, 0x00, 0x00}, // holen mitte
+        								{0x02, 0x00, 0x1d, 0x1a, 0x1e, 0x01, 0x00, 0x00}, // holen aussen mitte
+        								{0x02, 0x00, 0x1f, 0x15, 0x21, 0x01, 0x00, 0x00}, // holen aussen
+        };
 	 	posArm = (uint8_t *)posArmLeft;
+	 	timosWish = (uint8_t *)timosWishLeft;
 	 	id_arm_comand_request = ROBOT_L_COMAND_REQUEST_ID;
 
 	 	queueRobotLeft = xQueueCreate(MSG_QUEUE_SIZE, sizeof(CARME_CAN_MESSAGE));
@@ -147,21 +163,43 @@ void vMoveRoboter(void *pvData) {
 			}
 
 
-
-
-
-			ucan_send_data(COMAND_DLC, id_arm_comand_request, &posArm[n*8] );
-			waitUntilPos(&posArm[n*8], leftRightSel);
-
-			if(n == 0) { //after we moved above the position were we want to grab Mitte
+			if(n == 1 || n==2) { //before we want to grab the block
 				int8_t pos;
-				if(leftRightSel == 1) {
-					xQueueReceive(bcs_left_end_queue,&pos,portMAX_DELAY);
-				} else {
-					xQueueReceive(bcs_right_end_queue,&pos,portMAX_DELAY);
+				if(n==1){
+					if(leftRightSel == 1) {
+						xQueueReceive(bcs_left_end_queue,&pos,portMAX_DELAY);
+					}
+					else{
+						xQueueReceive(bcs_right_end_queue,&pos,portMAX_DELAY);
+					}
+					display_log(DISPLAY_NEWLINE,"block is at pos %d",pos);
 				}
-				display_log(DISPLAY_NEWLINE,"block is at pos %d",pos);
+
+				int index = 0;
+				if(pos < -14){
+					index = 0;
+				}
+				else if(pos > -15 && pos < 1){
+					index = 1;
+				}
+				else if(pos > 2 && pos < 17){
+					index = 2;
+				}
+				else if(pos > 18 && pos < 34){
+					index = 3;
+				}
+				else if(pos > 35){
+					index = 4;
+				}
+				//grab block
+				timosWish[index*8+5] = (n==1) ? 1 : 0;
+				ucan_send_data(COMAND_DLC, id_arm_comand_request, &timosWish[index*8] );
+				waitUntilPos(&timosWish[index*8], leftRightSel);
+			} else {  //we dont want to grab a block -> go to position
+				ucan_send_data(COMAND_DLC, id_arm_comand_request, &posArm[n*8] );
+				waitUntilPos(&posArm[n*8], leftRightSel);
 			}
+
 
             if(n== 8) { //after we dropped a block
                 xSemaphoreGive(bcs_mid_start_semaphore);
@@ -256,7 +294,7 @@ void waitUntilPos(uint8_t *pos, int side)
 
 void init_arm()
 {
-
+/*
 	xTaskCreate(vMoveRoboter,
 	                "Arm Left",
 	                ARM_TASK_STACKSIZE,
@@ -270,13 +308,13 @@ void init_arm()
 	                (void*)0,
 	                ARM_TASK_PRIORITY,
 	                NULL);
-/*
+*/
 	xTaskCreate(vManualArmMovment,
 				"Manual Arm Movement",
 				ARM_TASK_STACKSIZE,
 				NULL,
 				ARM_TASK_PRIORITY,
-				NULL);*/
+				NULL);
 }
 
 
