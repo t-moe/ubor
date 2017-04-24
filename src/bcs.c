@@ -3,9 +3,11 @@
 #include <stdio.h>
 #include <task.h>
 #include <queue.h>
+#include <semphr.h>
 #include <stdbool.h>
 #include <string.h>
 #include "ucan.h"
+#include "bcs.h"
 
 // -------------------- Configuration  ------------
 #define STACKSIZE_TASK  256
@@ -55,15 +57,17 @@ static QueueHandle_t ucan_queue_right;
 
 //Semaphores
 static SemaphoreHandle_t bcs_left_start_semaphore; //Given by mid task, Taken by left
+static SemaphoreHandle_t bcs_mid_start_semaphore; //Given by arm Tasks, taken by Mid task
 static SemaphoreHandle_t bcs_right_start_semaphore; //Given by mid task, Taken by right
-QueueHandle_t bcs_left_end_queue; //Given by left task, Taken by Arm Left
-QueueHandle_t bcs_right_end_queue; //Given by right task, taken by Arm Right
-SemaphoreHandle_t bcs_mid_start_semaphore; //Given by arm Tasks, taken by Mid task
+static SemaphoreHandle_t bcs_left_free_semaphore; //Given by left task, Taken by arm task
+static SemaphoreHandle_t bcs_mid_free_semaphore; //Given by mid task, Taken by left/right task
+static SemaphoreHandle_t bcs_right_free_semaphore; //Given by right task, Taken by arm task
 
-//Enum to destinguish the different tasks. The members point to the base address of the can endpoints
-enum belt_select {belt_left=0x110,
-                  belt_mid=0x120,
-                  belt_right=0x130};
+static QueueHandle_t bcs_left_end_queue; //Given by left task, Taken by Arm Left
+static QueueHandle_t bcs_right_end_queue; //Given by right task, taken by Arm Right
+
+
+
 
 static void bcs_send_msg(const message_t* msg, uint16_t baseaddr)
 {
@@ -111,6 +115,63 @@ static status_t* bcs_await_block(enum belt_select belt, QueueHandle_t ucan_queue
             return NULL;
         }
     }
+}
+
+
+void bcs_prepare_drop(enum belt_select belt) {
+
+    switch(belt) {
+    case belt_left:
+        xSemaphoreTake(bcs_left_free_semaphore,portMAX_DELAY);
+        break;
+    case belt_right:
+        xSemaphoreTake(bcs_right_free_semaphore,portMAX_DELAY);
+        break;
+    case belt_mid:
+        xSemaphoreTake(bcs_mid_free_semaphore,portMAX_DELAY);
+        break;
+
+    }
+}
+
+void bcs_signal_dropped(enum belt_select belt) {
+    switch(belt) {
+    case belt_left:
+        xSemaphoreGive(bcs_left_start_semaphore);
+        break;
+    case belt_right:
+        xSemaphoreGive(bcs_right_start_semaphore);
+        break;
+    case belt_mid:
+        xSemaphoreGive(bcs_mid_start_semaphore);
+        break;
+
+    }
+}
+
+void bcs_signal_band_free(enum belt_select belt) {
+    switch(belt) {
+    case belt_left:
+        xSemaphoreGive(bcs_left_free_semaphore);
+        break;
+    case belt_right:
+        xSemaphoreGive(bcs_right_free_semaphore);
+        break;
+    case belt_mid:
+        xSemaphoreGive(bcs_mid_free_semaphore);
+        break;
+
+    }
+}
+
+int8_t bcs_grab(enum belt_select belt) {
+    int8_t pos;
+    if(belt == belt_left) {
+        xQueueReceive(bcs_left_end_queue,&pos,portMAX_DELAY);
+    } else if(belt == belt_right){
+        xQueueReceive(bcs_right_end_queue,&pos,portMAX_DELAY);
+    }
+    return pos;
 }
 
 void bcs_task(void *pv_data)
@@ -196,11 +257,14 @@ void bcs_task(void *pv_data)
             xQueueSend(bcs_right_end_queue,&(status->location),portMAX_DELAY);
             break;
         case belt_mid:
-            xSemaphoreGive(moveLeft ? bcs_left_start_semaphore : bcs_right_start_semaphore);
+            bcs_prepare_drop(moveLeft ? belt_left : belt_right);
+
             display_log(DISPLAY_NEWLINE,"Dispatcher moves %s",moveLeft ? "left" : "right");
             bcs_send_msg(moveLeft ? &msg_cmd_disp_move_left : &msg_cmd_disp_move_right,0);
             moveLeft = ! moveLeft;
             vTaskDelay(2000); //let dispatcher move block away
+
+            bcs_signal_dropped(moveLeft ? belt_left : belt_right);
             break;
 
 
@@ -208,6 +272,7 @@ void bcs_task(void *pv_data)
 
         //---- Step 5: Tell the band that we're finished
         bcs_send_msg(&msg_cmd_done,belt);
+        bcs_signal_band_free(belt);
     }
 }
 
@@ -216,6 +281,13 @@ void bcs_init()
     bcs_left_start_semaphore = xSemaphoreCreateBinary();
     bcs_right_start_semaphore = xSemaphoreCreateBinary();
     bcs_mid_start_semaphore = xSemaphoreCreateBinary();
+
+    bcs_left_free_semaphore = xSemaphoreCreateBinary();
+    bcs_mid_free_semaphore = xSemaphoreCreateBinary();
+    bcs_right_free_semaphore = xSemaphoreCreateBinary();
+    xSemaphoreGive(bcs_left_free_semaphore);
+    xSemaphoreGive(bcs_mid_free_semaphore);
+    xSemaphoreGive(bcs_right_free_semaphore);
 
     bcs_left_end_queue = xQueueCreate(1,sizeof(int8_t));
     bcs_right_end_queue = xQueueCreate(1,sizeof(int8_t));

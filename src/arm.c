@@ -147,24 +147,20 @@ void vMoveRoboter(void *pvData) {
 			}
 
 
-
-
+            if(n== 7) { //before we really drop the bcs
+                bcs_prepare_drop(belt_mid);
+            }
 
 			ucan_send_data(COMAND_DLC, id_arm_comand_request, &posArm[n*8] );
 			waitUntilPos(&posArm[n*8], leftRightSel);
 
 			if(n == 0) { //after we moved above the position were we want to grab Mitte
-				int8_t pos;
-				if(leftRightSel == 1) {
-					xQueueReceive(bcs_left_end_queue,&pos,portMAX_DELAY);
-				} else {
-					xQueueReceive(bcs_right_end_queue,&pos,portMAX_DELAY);
-				}
+                int8_t pos = bcs_grab(leftRightSel == 1 ? belt_left : belt_right);
 				display_log(DISPLAY_NEWLINE,"block is at pos %d",pos);
 			}
 
             if(n== 8) { //after we dropped a block
-                xSemaphoreGive(bcs_mid_start_semaphore);
+                bcs_signal_dropped(belt_mid);
             }
 
 			if(n == 9){ //after we moved out of the mid position
