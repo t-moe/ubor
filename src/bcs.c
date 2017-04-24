@@ -17,6 +17,8 @@
 
 // ------------------ Implementation --------------
 
+#define SWITCH 	((volatile unsigned char*)(0x6C000400))
+
 typedef struct {
     uint16_t subid;
     uint8_t length;
@@ -242,6 +244,9 @@ void bcs_task(void *pv_data)
 
         //----- Step 3 (only mid band): Move the dispatcher so we don't interfere with the coming block
         if(belt== belt_mid) {
+            if(*SWITCH&0x01) { //Manual Direction selection
+                moveLeft = *SWITCH&0x02; //read direction from switch
+            }
             display_log(DISPLAY_NEWLINE,"Making dispatcher ready for moving %s",moveLeft ? "left" : "right");
             bcs_send_msg(moveLeft ? &msg_cmd_disp_start_left : &msg_cmd_disp_start_right,0);
         }
