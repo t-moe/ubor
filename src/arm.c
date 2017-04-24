@@ -76,6 +76,7 @@ void vMoveRoboter(void *pvData) {
 	uint8_t *posArm;
 	uint8_t *timosWish;
 	int id_arm_comand_request;
+    int indexArmGripPosition = 0;
 
 	/* Init */
 	if(leftRightSel == 0)
@@ -169,47 +170,34 @@ void vMoveRoboter(void *pvData) {
 
 
 			if(n == 1 || n==2) { //before we want to grab the block
-				int8_t pos;
 				if(n==1){
-					if(leftRightSel == 1) {
-						xQueueReceive(bcs_left_end_queue,&pos,portMAX_DELAY);
-					}
-					else{
-						xQueueReceive(bcs_right_end_queue,&pos,portMAX_DELAY);
-					}
-					display_log(DISPLAY_NEWLINE,"block is at pos %d",pos);
-				}
-
-				int index = 0;
-				if(pos < -14){
-					index = 0;
-				}
-				else if(pos > -15 && pos < 1){
-					index = 1;
-				}
-				else if(pos > 2 && pos < 17){
-					index = 2;
-				}
-				else if(pos > 18 && pos < 34){
-					index = 3;
-				}
-				else if(pos > 35){
-					index = 4;
-				}
+                    int8_t pos;
+                    pos = bcs_grab(leftRightSel == 1 ? belt_left : belt_right);
+                    display_log(DISPLAY_NEWLINE,"block is at pos %d",pos);
+                    if(pos <= -14){
+                        indexArmGripPosition = 0;
+                    }
+                    else if(pos >= -15 && pos <= 1){
+                        indexArmGripPosition = 1;
+                    }
+                    else if(pos >= 2 && pos <= 17){
+                        indexArmGripPosition = 2;
+                    }
+                    else if(pos >= 18 && pos <= 34){
+                        indexArmGripPosition = 3;
+                    }
+                    else if(pos >= 35){
+                        indexArmGripPosition = 4;
+                    }
+                }
 				//grab block
-				timosWish[index*8+5] = (n==1) ? 1 : 0;
-				ucan_send_data(COMAND_DLC, id_arm_comand_request, &timosWish[index*8] );
-				waitUntilPos(&timosWish[index*8], leftRightSel);
+                timosWish[indexArmGripPosition*8+5] = (n==1) ? 1 : 0;
+                ucan_send_data(COMAND_DLC, id_arm_comand_request, &timosWish[indexArmGripPosition*8] );
+                waitUntilPos(&timosWish[indexArmGripPosition*8], leftRightSel);
 			} else {  //we dont want to grab a block -> go to position
 				ucan_send_data(COMAND_DLC, id_arm_comand_request, &posArm[n*8] );
 				waitUntilPos(&posArm[n*8], leftRightSel);
 			}
-
-
-            if(n == 0) { //after we moved above the position were we want to grab Mitte
-                int8_t pos = bcs_grab(leftRightSel == 1 ? belt_left : belt_right);
-                display_log(DISPLAY_NEWLINE,"block is at pos %d",pos);
-            }
 
             if(n==3) { //after we picked up a block
                 bcs_signal_band_free(leftRightSel == 1 ? belt_left : belt_right);
@@ -240,18 +228,6 @@ void waitUntilPos(uint8_t *pos, int side)
 
 		while(closeEnough != true)
 		{
-			/*display_log(DISPLAY_NEWLINE,"right pos %x %x %x %x %x %x",pcMsgBufferRight.data[0],
-					pcMsgBufferRight.data[1],
-					pcMsgBufferRight.data[2],
-					pcMsgBufferRight.data[3],
-					pcMsgBufferRight.data[4],
-					pcMsgBufferRight.data[5]
-			);
-			display_log(DISPLAY_NEWLINE, "right pos soll %x %x %x %x %x %x",temp[0],temp[1],
-								temp[2],
-								temp[3],
-								temp[4],
-								temp[5]);*/
 			vTaskDelay(200);
 			ucan_send_data(STATUS_REQEST_DLC, ROBOT_R_STATUS_REQUEST_ID, status_request );
 
@@ -272,18 +248,6 @@ void waitUntilPos(uint8_t *pos, int side)
 		//display_log(DISPLAY_NEWLINE, "Left arm wait until position reached");
 		while(closeEnough != true)
 		{
-			/*display_log(DISPLAY_NEWLINE,"left pos %x %x %x %x %x %x",pcMsgBufferLeft.data[0],
-								pcMsgBufferLeft.data[1],
-								pcMsgBufferLeft.data[2],
-								pcMsgBufferLeft.data[3],
-								pcMsgBufferLeft.data[4],
-								pcMsgBufferLeft.data[5]
-						);
-			display_log(DISPLAY_NEWLINE, "left pos soll %x %x %x %x %x %x",temp[0],temp[1],
-					temp[2],
-					temp[3],
-					temp[4],
-					temp[5]);*/
 
 			vTaskDelay(200);
 
@@ -292,18 +256,16 @@ void waitUntilPos(uint8_t *pos, int side)
 			xQueueReceive(queueRobotLeft, (void *)&pcMsgBufferLeft, portMAX_DELAY);
 			closeEnough = true;
 			for(int i=1; i<6; i++){
-									if(abs(temp[i]-pcMsgBufferLeft.data[i])>0x01){
-									closeEnough = false;
-									break;
-									}
-
-								}
+                if(abs(temp[i]-pcMsgBufferLeft.data[i])>0x01){
+                    closeEnough = false;
+                    break;
+                }
+            }
 		}
 
 		//display_log(DISPLAY_NEWLINE, "Left arm reached position");
 	}
-
-
+    vTaskDelay(200);
 }
 
 void init_arm()
