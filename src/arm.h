@@ -60,7 +60,7 @@
 //
 #define BLOCK_TIME_MIDDLE_POS 200000 // block time for mutex midle position
 #define MSG_QUEUE_SIZE 1
-#define ARM_TASK_PRIORITY 3
+#define ARM_TASK_PRIORITY 2
 #define ARM_TASK_STACKSIZE 256
 #define TASK_DELAY 100
 
