@@ -79,7 +79,7 @@ void vMoveRoboter(void *pvData) {
 	/* Init */
 	if(leftRightSel == 0)
 	{
-		static uint8_t posArmRight[10][8] = {
+        static uint8_t posArmRight[11][8] = {
 			/*                      Arm	   B     S     E     H     G     x     x */
 			/*0 Nullposition     */ {0x02, 0x00, 0x19, 0x1A, 0x21, 0x01, 0x00, 0x00},
 			/*1 StartPosition    */ {0x02, 0x00, 0x1F, 0x1A, 0x21, 0x01, 0x00, 0x00},
@@ -91,6 +91,7 @@ void vMoveRoboter(void *pvData) {
 			/*7 Zp2 FB Mitte     */ {0x02, 0xD2, 0x1c, 0x1d, 0x21, 0x01, 0x00, 0x00},
 			/*8 G zu FB Mitte    */ {0x02, 0xD2, 0x13, 0x1d, 0x21, 0x01, 0x00, 0x00},
 			/*9 G offen FB Mitte */ {0x02, 0xD2, 0x00, 0x36, 0x21, 0x01, 0x00, 0x00},
+                                    {0x02, 0xEE, 0x00, 0x36, 0x21, 0x01, 0x00, 0x00},
 			};
 
 
@@ -108,7 +109,7 @@ void vMoveRoboter(void *pvData) {
 
 	if(leftRightSel == 1)
 	{
-	 	static uint8_t posArmLeft[10][8] = {
+        static uint8_t posArmLeft[11][8] = {
 				/*                      Arm	   B     S     E     H     G     x     x */
 	 									{0x02, 0x00, 0x19, 0x1A, 0x21, 0x01, 0x00, 0x00}, //Warte Position ECTS Abholen
 	 									{0x02, 0x00, 0x1F, 0x1A, 0x21, 0x01, 0x00, 0x00}, //ECTS Holen Mitte
@@ -120,6 +121,7 @@ void vMoveRoboter(void *pvData) {
 	 									{0x02, 0x2D, 0x1c, 0x1d, 0x21, 0x01, 0x00, 0x00}, //ECTS Ablegen
 	 									{0x02, 0x2D, 0x13, 0x1d, 0x21, 0x01, 0x00, 0x00}, //Arm auserhalb ects
 	 									{0x02, 0x2D, 0x00, 0x36, 0x21, 0x01, 0x00, 0x00}, //Arm ausserhalb mitte
+                                        {0x02, 0x12, 0x00, 0x36, 0x21, 0x01, 0x00, 0x00}, //Arm ausserhalb mitte
 				};
 	 	posArm = (uint8_t *)posArmLeft;
 	 	id_arm_comand_request = ROBOT_L_COMAND_REQUEST_ID;
@@ -135,12 +137,12 @@ void vMoveRoboter(void *pvData) {
 	while(1)
 	{
 
-		for(int n = 0; n < 10; n++)
+        for(int n = 0; n < 11; n++)
 		{
             display_log(DISPLAY_NEWLINE, "Going to position %u",n);
 
 			if(n == 6){ //before we want to access the mid position
-				display_log(DISPLAY_NEWLINE, "take semaphore");
+                display_log(DISPLAY_NEWLINE, "take semaphore mid");
 				xSemaphoreTake(mutexMiddlePosition, portMAX_DELAY);
 			}
 
@@ -161,10 +163,13 @@ void vMoveRoboter(void *pvData) {
 				display_log(DISPLAY_NEWLINE,"block is at pos %d",pos);
 			}
 
+            if(n== 8) { //after we dropped a block
+                xSemaphoreGive(bcs_mid_start_semaphore);
+            }
+
 			if(n == 9){ //after we moved out of the mid position
-				display_log(DISPLAY_NEWLINE, "give semaphore");
+                display_log(DISPLAY_NEWLINE, "give semaphore mid");
 				xSemaphoreGive(mutexMiddlePosition);
-				xSemaphoreGive(bcs_mid_start_semaphore);
 			}
 
 
