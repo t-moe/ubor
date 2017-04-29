@@ -60,6 +60,18 @@ uint8_t status_request[2] = {0x02,0x00};
 //----- Implementation ---------------------------------------------------------
 
 
+
+static void arm_enter_critical_air_space() {
+    display_log(DISPLAY_NEWLINE, "take semaphore mid");
+    xSemaphoreTake(arm_mid_air_mutex, portMAX_DELAY); //to protect the airspace around mid
+}
+
+static void arm_leave_critical_air_space() {
+    display_log(DISPLAY_NEWLINE, "give semaphore mid");
+    xSemaphoreGive(arm_mid_air_mutex);
+}
+
+
 /*******************************************************************************
  *  function :    vMoveRoboter
  ******************************************************************************/
@@ -149,8 +161,7 @@ void vMoveRoboter(void *pvData) {
          }
 
 			if(n == 6){ //before we want to access the mid position
-                display_log(DISPLAY_NEWLINE, "take semaphore mid");
-                xSemaphoreTake(arm_mid_air_mutex, portMAX_DELAY); //to protect the airspace around mid
+                arm_enter_critical_air_space();
 			}
 
             if(n==7) { //before we open the grip (to drop the block)
@@ -159,8 +170,8 @@ void vMoveRoboter(void *pvData) {
 
 
 
-				ucan_send_data(COMAND_DLC, id_arm_comand_request, &posArm[n*6] );
-				waitUntilPos(&posArm[n*6], leftRightSel);
+            ucan_send_data(COMAND_DLC, id_arm_comand_request, &posArm[n*6] );
+            waitUntilPos(&posArm[n*6], leftRightSel);
 
             if(n==3) { //after we picked up a block
                 bcs_signal_band_free(leftRightSel == 1 ? belt_left : belt_right);
@@ -171,8 +182,7 @@ void vMoveRoboter(void *pvData) {
             }
 
 			if(n == 9){ //after we moved out of the mid position
-                display_log(DISPLAY_NEWLINE, "give semaphore mid");
-                xSemaphoreGive(arm_mid_air_mutex);
+                arm_leave_critical_air_space();
 			}
 
 

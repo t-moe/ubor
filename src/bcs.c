@@ -177,9 +177,6 @@ void bcs_await_drop(enum belt_select belt, bool allow_skip) {
         xSemaphoreTake(bcs_right_start_semaphore,portMAX_DELAY);
         break;
     case belt_mid:
-        display_log(DISPLAY_NEWLINE,"Reset dispatcher");
-        bcs_send_msg(&msg_cmd_disp_initial_pos,0);
-
         if(allow_skip) {
             xSemaphoreTake(bcs_mid_start_semaphore,2000); //try to aquire mutex anyway, in case it was already there
             //if mutex could not be taken => go on (skipping is allowed)
@@ -241,6 +238,9 @@ void bcs_task(void *pv_data)
                 mid_start_without_mutex_count++;
                 allow_skip = true;
             }
+
+            display_log(DISPLAY_NEWLINE,"Reset dispatcher");
+            bcs_send_msg(&msg_cmd_disp_initial_pos,0);
         }
 
         bcs_await_drop(belt,allow_skip);
@@ -272,9 +272,11 @@ void bcs_task(void *pv_data)
         //----- Step 4: Mark the block ready for further processing (give semaphore) and optionally move the dispatcher (only mid band).
         switch(belt) {
         case belt_left:
+            //bcs_prepare_pickup(belt_left)
             xQueueSend(bcs_left_end_queue,&(status->location),portMAX_DELAY);
             break;
         case belt_right:
+            //bcs_prepare_pickup(belt_right)
             xQueueSend(bcs_right_end_queue,&(status->location),portMAX_DELAY);
             break;
         case belt_mid:
