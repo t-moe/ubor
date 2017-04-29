@@ -166,6 +166,34 @@ void bcs_signal_band_free(enum belt_select belt) {
     }
 }
 
+
+void bcs_await_drop(enum belt_select belt, bool allow_skip) {
+
+    switch(belt) {
+    case belt_left:
+        xSemaphoreTake(bcs_left_start_semaphore,portMAX_DELAY);
+        break;
+    case belt_right:
+        xSemaphoreTake(bcs_right_start_semaphore,portMAX_DELAY);
+        break;
+    case belt_mid:
+        display_log(DISPLAY_NEWLINE,"Reset dispatcher");
+        bcs_send_msg(&msg_cmd_disp_initial_pos,0);
+
+        if(allow_skip) {
+            xSemaphoreTake(bcs_mid_start_semaphore,2000); //try to aquire mutex anyway, in case it was already there
+            //if mutex could not be taken => go on (skipping is allowed)
+        } else {
+            xSemaphoreTake(bcs_mid_start_semaphore,portMAX_DELAY);
+        }
+        break;
+
+    }
+
+}
+
+
+
 int8_t bcs_grab(enum belt_select belt) {
     int8_t pos;
     if(belt == belt_left) {
@@ -197,8 +225,8 @@ void bcs_task(void *pv_data)
 
 
     //only for mid task
-    bool moveLeft = true; //whether the dispatcher should move left or right
-    uint8_t midStartWithoutMutexCount = 0; //The number of times we started the mid band without awaiting the mutex
+    bool move_left = true; //whether the dispatcher should move left or right
+    uint8_t mid_start_without_mutex_count = 0; //The number of times we started the mid band without awaiting the mutex
 
 
     while(true) {
@@ -207,28 +235,16 @@ void bcs_task(void *pv_data)
         display_log(DISPLAY_NEWLINE,"reset band");
 
         //----- Step 1: Wait on a block (take semaphore), before we start the band ------------------
-        switch(belt) {
-        case belt_left:
-            xSemaphoreTake(bcs_left_start_semaphore,portMAX_DELAY);
-            break;
-        case belt_right:
-            xSemaphoreTake(bcs_right_start_semaphore,portMAX_DELAY);
-            break;
-        case belt_mid:
-            display_log(DISPLAY_NEWLINE,"Reset dispatcher");
-            bcs_send_msg(&msg_cmd_disp_initial_pos,0);
-
-            if(midStartWithoutMutexCount < MAX_BLOCK_COUNT) { //we are in the init phase
-                midStartWithoutMutexCount++;
-                xSemaphoreTake(bcs_mid_start_semaphore,2000); //try to aquire mutex anyway, in case it was already there
-                //if mutex could not be taken => go on (since we're in the init phase)
-            } else {
-                xSemaphoreTake(bcs_mid_start_semaphore,portMAX_DELAY);
+        bool allow_skip = false;
+        if(belt == belt_mid) {
+            if(mid_start_without_mutex_count < MAX_BLOCK_COUNT) { //we are in the init phase
+                mid_start_without_mutex_count++;
+                allow_skip = true;
             }
-            
-            break;
-
         }
+
+        bcs_await_drop(belt,allow_skip);
+
 
         //----- Step 2: Start the band, and wait till we detect the block
         bcs_send_msg(&msg_cmd_start,belt);
@@ -245,10 +261,10 @@ void bcs_task(void *pv_data)
         //----- Step 3 (only mid band): Move the dispatcher so we don't interfere with the coming block
         if(belt== belt_mid) {
             if(*SWITCH&0x01) { //Manual Direction selection
-                moveLeft = *SWITCH&0x02; //read direction from switch
+                move_left = *SWITCH&0x02; //read direction from switch
             }
-            display_log(DISPLAY_NEWLINE,"Making dispatcher ready for moving %s",moveLeft ? "left" : "right");
-            bcs_send_msg(moveLeft ? &msg_cmd_disp_start_left : &msg_cmd_disp_start_right,0);
+            display_log(DISPLAY_NEWLINE,"Making dispatcher ready for moving %s",move_left ? "left" : "right");
+            bcs_send_msg(move_left ? &msg_cmd_disp_start_left : &msg_cmd_disp_start_right,0);
         }
         vTaskDelay(2000); //let block move to the end of the band
 
@@ -262,14 +278,14 @@ void bcs_task(void *pv_data)
             xQueueSend(bcs_right_end_queue,&(status->location),portMAX_DELAY);
             break;
         case belt_mid:
-            bcs_prepare_drop(moveLeft ? belt_left : belt_right);
+            bcs_prepare_drop(move_left ? belt_left : belt_right);
 
-            display_log(DISPLAY_NEWLINE,"Dispatcher moves %s",moveLeft ? "left" : "right");
-            bcs_send_msg(moveLeft ? &msg_cmd_disp_move_left : &msg_cmd_disp_move_right,0);
+            display_log(DISPLAY_NEWLINE,"Dispatcher moves %s",move_left ? "left" : "right");
+            bcs_send_msg(move_left ? &msg_cmd_disp_move_left : &msg_cmd_disp_move_right,0);
             vTaskDelay(1000); //let dispatcher move block away
 
-            bcs_signal_dropped(moveLeft ? belt_left : belt_right);
-            moveLeft = ! moveLeft;
+            bcs_signal_dropped(move_left ? belt_left : belt_right);
+            move_left = ! move_left;
             break;
 
 

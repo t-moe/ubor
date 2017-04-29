@@ -52,7 +52,7 @@
 static QueueHandle_t queueRobotLeft;
 static QueueHandle_t queueRobotRight;
 static QueueHandle_t queueRobotManual;
-static SemaphoreHandle_t mutexMiddlePosition;
+static SemaphoreHandle_t arm_mid_air_mutex;
 CARME_CAN_MESSAGE pcMsgBufferRight;
 CARME_CAN_MESSAGE pcMsgBufferLeft;
 
@@ -94,8 +94,8 @@ void vMoveRoboter(void *pvData) {
                                     {0x02, 0xEE, 0x00, 0x36, 0x21, 0x01},
 			};
 
-		mutexMiddlePosition = xSemaphoreCreateBinary();
-		xSemaphoreGive(mutexMiddlePosition);
+        arm_mid_air_mutex = xSemaphoreCreateBinary();
+        xSemaphoreGive(arm_mid_air_mutex);
 
 		queueRobotRight = xQueueCreate(MSG_QUEUE_SIZE, sizeof(CARME_CAN_MESSAGE));
 		ucan_link_message_to_queue(ROBOT_R_STATUS_RETURN_ID, queueRobotRight);
@@ -150,7 +150,7 @@ void vMoveRoboter(void *pvData) {
 
 			if(n == 6){ //before we want to access the mid position
                 display_log(DISPLAY_NEWLINE, "take semaphore mid");
-                xSemaphoreTake(mutexMiddlePosition, portMAX_DELAY); //to protect the airspace around mid
+                xSemaphoreTake(arm_mid_air_mutex, portMAX_DELAY); //to protect the airspace around mid
 			}
 
             if(n==7) { //before we open the grip (to drop the block)
@@ -172,7 +172,7 @@ void vMoveRoboter(void *pvData) {
 
 			if(n == 9){ //after we moved out of the mid position
                 display_log(DISPLAY_NEWLINE, "give semaphore mid");
-				xSemaphoreGive(mutexMiddlePosition);
+                xSemaphoreGive(arm_mid_air_mutex);
 			}
 
 
