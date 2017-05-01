@@ -6,6 +6,16 @@ Semester project in real time operating systems.
 
 See [Doxygen Documentation](https://t-moe.github.io/ubor/)
 
+# How to build
+
+On Linux: `make`  
+On Windows with Atollic: Copy the files from the src folder to a new empty Free-RTOS project.
+
+# How to run on Linux:
+
+`make flash` or  
+`make debug`
+
 
 # Requirements
 
