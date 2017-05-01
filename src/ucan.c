@@ -46,7 +46,18 @@ static SemaphoreHandle_t can_semaphore;
 
 /* ----- Functions -----------------------------------------------------------*/
 
-/* TASK: Write data from message queue to bus */
+
+/*******************************************************************************
+ *  function :    ucan_write_data
+ ******************************************************************************/
+/** @brief      Task which handles the printing of data to the message queue.
+ *
+ *  @type       static
+ *
+ *  @param[in]  void      *pv_data
+ *
+ *  @return     none
+ ******************************************************************************/
 static void ucan_write_data(void *pv_data)
 {
     while(true) {
@@ -61,7 +72,18 @@ static void ucan_write_data(void *pv_data)
     }
 }
 
-/* TASK: Get can messages and send them to the according message queue */
+/*******************************************************************************
+ *  function :    ucan_read_data
+ ******************************************************************************/
+/** @brief      Task which reads can messages and sends them to the can message
+ *              queue
+ *
+ *  @type       static
+ *
+ *  @param[in]  void      *pv_data
+ *
+ *  @return     none
+ ******************************************************************************/
 static void ucan_read_data(void *pv_data)
 {
     while(true) {
@@ -79,6 +101,21 @@ static void ucan_read_data(void *pv_data)
     }
 }
 
+/*******************************************************************************
+ *  function :    ucan_dispatch_data
+ ******************************************************************************/
+/** @brief
+ *
+ *  @type         global
+ *
+ *  @param[in]    type    Type definition, specifies the output tag
+ *  @param[in]    msg     Text string
+ *
+ *  @return       none
+ *
+ *  @author       Schmocker Aaron
+ *
+ ******************************************************************************/
 /* Read incomming can messages from the rx_queue and forwards them according to the queue map */
 static void ucan_dispatch_data(void *pv_data)
 {

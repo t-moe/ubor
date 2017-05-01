@@ -17,7 +17,7 @@
 
 // ------------------ Implementation --------------
 
-#define SWITCH 	((volatile unsigned char*)(0x6C000400))
+#define SWITCH  ((volatile unsigned char*)(0x6C000400))
 
 typedef struct {
     uint16_t subid;
@@ -120,7 +120,8 @@ static status_t* bcs_await_block(enum belt_select belt, QueueHandle_t ucan_queue
 }
 
 
-void bcs_prepare_drop(enum belt_select belt) {
+void bcs_prepare_drop(enum belt_select belt)
+{
 
     switch(belt) {
     case belt_left:
@@ -136,7 +137,8 @@ void bcs_prepare_drop(enum belt_select belt) {
     }
 }
 
-void bcs_signal_dropped(enum belt_select belt) {
+void bcs_signal_dropped(enum belt_select belt)
+{
     switch(belt) {
     case belt_left:
         xSemaphoreGive(bcs_left_start_semaphore);
@@ -151,7 +153,8 @@ void bcs_signal_dropped(enum belt_select belt) {
     }
 }
 
-void bcs_signal_band_free(enum belt_select belt) {
+void bcs_signal_band_free(enum belt_select belt)
+{
     switch(belt) {
     case belt_left:
         xSemaphoreGive(bcs_left_free_semaphore);
@@ -167,7 +170,8 @@ void bcs_signal_band_free(enum belt_select belt) {
 }
 
 
-void bcs_await_drop(enum belt_select belt, bool allow_skip) {
+void bcs_await_drop(enum belt_select belt, bool allow_skip)
+{
 
     switch(belt) {
     case belt_left:
@@ -191,11 +195,12 @@ void bcs_await_drop(enum belt_select belt, bool allow_skip) {
 
 
 
-int8_t bcs_grab(enum belt_select belt) {
+int8_t bcs_grab(enum belt_select belt)
+{
     int8_t pos;
     if(belt == belt_left) {
         xQueueReceive(bcs_left_end_queue,&pos,portMAX_DELAY);
-    } else if(belt == belt_right){
+    } else if(belt == belt_right) {
         xQueueReceive(bcs_right_end_queue,&pos,portMAX_DELAY);
     }
     return pos;
@@ -253,7 +258,7 @@ void bcs_task(void *pv_data)
 
         CARME_CAN_MESSAGE tmp_message;
         status_t* status = bcs_await_block(belt,ucan_queue,&tmp_message);
-        if(status==NULL){ //timeout
+        if(status==NULL) { //timeout
             while(true);
             //TODO: Listen on button press
         }
