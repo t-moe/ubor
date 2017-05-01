@@ -19,13 +19,13 @@
 
 /*----- Defines --------------------------------------------------------------*/
 
-#define UCAN_LOG_SENT 0
-#define UCAN_LOG_SENDING 0
-#define UCAN_LOG_RECEIVE 0
-#define UCAN_LOG_DISPATCH 0
-#define UCAN_LOG_DROP 0
+#define UCAN_LOG_SENT 0 //!< Enable or disable logging by setting this to either true or false
+#define UCAN_LOG_SENDING 0 //!< Set loglevel to sent messages
+#define UCAN_LOG_RECEIVE 0 //!< Set loglevel to recieved messages
+#define UCAN_LOG_DISPATCH 0 //!< Set loglevel to dispatched messages
+#define UCAN_LOG_DROP 0 //!< Set loglevel to dropped messages (unable to dispatch)
 
-#define LOG_IF(cond,...) do{ if(cond) display_log(__VA_ARGS__); } while(false)
+#define LOG_IF(cond,...) do{ if(cond) display_log(__VA_ARGS__); } while(false) // Write to log using loglevels
 
 /*----- Data types -----------------------------------------------------------*/
 

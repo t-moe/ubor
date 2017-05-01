@@ -25,23 +25,27 @@
 #define PRIORITY_TASK   2   // Taskpriority
 
 /* ----- Datatypes -----------------------------------------------------------*/
+
+/**
+ * @brief   This datatype combines a message queue its id and a mask for filtering
+ **/
 typedef struct msg_link_s {
-    QueueHandle_t queue;
-    uint16_t message_id;
-    uint16_t mask;
+    QueueHandle_t queue; //!< FreeRTOS message queue
+    uint16_t message_id; //!< ID of the queue for dispatching rules
+    uint16_t mask; //<! Mask for filtering rules
 } msg_link_t;
 
 /* ----- Globals ------------------------------------------------------------*/
-static CARME_CAN_MESSAGE rx_msg;
-static CARME_CAN_MESSAGE tx_msg;
+static CARME_CAN_MESSAGE rx_msg; //!< Message data object for incoming can messages
+static CARME_CAN_MESSAGE tx_msg; //!< Message data object for outgoing can messages
 
-static QueueHandle_t can_tx_queue;
-static QueueHandle_t can_rx_queue;
+static QueueHandle_t can_tx_queue; //!< Message queue for incoming can messages
+static QueueHandle_t can_rx_queue; //!< Message queue for outgoing can messages
 
-static msg_link_t message_map[SIZE_MAP];
-static uint16_t n_message_map;
+static msg_link_t message_map[SIZE_MAP]; //!< Global message map
+static uint16_t n_message_map; //!< Size of the global message map
 
-static SemaphoreHandle_t can_semaphore;
+static SemaphoreHandle_t can_semaphore; //!< Semaphore for can access
 
 
 /* ----- Functions -----------------------------------------------------------*/
@@ -49,7 +53,7 @@ static SemaphoreHandle_t can_semaphore;
 /** 
  * @brief      Task which handles the printing of data to the message queue.
  * @type       static
- * @param[in]  void     *pv_data
+ * @param[in]  void     *pv_data    Arguments from xTaskCreate
  * @return     none
  **/
 static void ucan_write_data(void *pv_data)
@@ -70,7 +74,7 @@ static void ucan_write_data(void *pv_data)
  * @brief      Task which reads can messages and sends them to the can message
  *             queue
  * @type       static
- * @param[in]  void      *pv_data
+ * @param[in]  void      *pv_data   Arguments from xTaskCreate
  * @return     none
  **/
 static void ucan_read_data(void *pv_data)
@@ -93,7 +97,7 @@ static void ucan_read_data(void *pv_data)
 /** 
  * @brief       Read incomming can messages from the rx_queue and forward them to the according message queue
  * @type        static
- * @param[in]   void    *pv_data
+ * @param[in]   void    *pv_data    Arguments from xTaskCreate
  * @return      none
  **/
 static void ucan_dispatch_data(void *pv_data)
@@ -160,10 +164,10 @@ static void ucan_setup_acceptance_filter(void)
 /** 
  * @brief       Set a message mask to map multiple message to a queue
  * @type        global
- * @param[in]   uint16_t        mask
- * @param[in]   uint16_t        message_id
- * @param[in]   QueueHandle_t   queue
- * @return      bool
+ * @param[in]   uint16_t        mask            Binary mask for filtering
+ * @param[in]   uint16_t        message_id      Unique integer which serves as id for the queue
+ * @param[in]   QueueHandle_t   queue           FreeRTOS message queue
+ * @return      bool            True if successful false if there is not enough space left
  **/
 bool ucan_link_message_to_queue_mask(uint16_t mask, uint16_t message_id, QueueHandle_t queue)
 {
@@ -185,19 +189,19 @@ bool ucan_link_message_to_queue_mask(uint16_t mask, uint16_t message_id, QueueHa
 /** 
  * @brief       Link a single message type to a queue
  * @type        global
- * @param[in]   uint16_t        message_id
- * @param[in]   QueueHandle_t   queue
- * @return      bool
+ * @param[in]   uint16_t        message_id      Unique integer which serves as id for the queue
+ * @param[in]   QueueHandle_t   queue           FreeRTOS message queue
+ * @return      bool            True if successful false if there is not enough space left
  **/
 bool ucan_link_message_to_queue(uint16_t message_id, QueueHandle_t queue)
 {
-    ucan_link_message_to_queue_mask(0x0FFF, message_id, queue);
+    return ucan_link_message_to_queue_mask(0x0FFF, message_id, queue);
 }
 
 /** 
  * @brief       Initialize the hardware and call each init function
  * @type        global
- * @return      none
+ * @return      bool    True if successful
  **/
 bool ucan_init(void)
 {
@@ -216,7 +220,7 @@ bool ucan_init(void)
     CARME_CAN_Init(CARME_CAN_BAUD_250K, CARME_CAN_DF_RESET);
     CARME_CAN_SetMode(CARME_CAN_DF_NORMAL);
 
-    /* Setup acceptance filter */
+    /* Setup acceptance filter, unused in the scope of this project*/
     //ucan_setup_acceptance_filter();
 
     /* Clear the rx and tx CAN message */
@@ -246,10 +250,10 @@ bool ucan_init(void)
 /** 
  * @brief       Send data to the can output message queue
  * @type        global
- * @param[in]   uint16_t    message_id
- * @param[in]   uint8_t     n_data_bytes
- * @param[in]   uint8_t     *data
- * @return      bool
+ * @param[in]   uint16_t    message_id      Unique integer which serves as id for the queue
+ * @param[in]   uint8_t     n_data_bytes    Size of the payload in bytes
+ * @param[in]   uint8_t     *data           Payload data to transmit
+ * @return      bool        True if successful
  **/
 bool ucan_send_data(uint8_t n_data_bytes, uint16_t msg_id, const uint8_t *data)
 {
