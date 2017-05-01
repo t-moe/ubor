@@ -53,7 +53,7 @@ static SemaphoreHandle_t can_semaphore; //!< Semaphore for can access
 /**
  * @brief      Task which handles the printing of data to the message queue.
  * @type       static
- * @param[in]  void     *pv_data    Arguments from xTaskCreate
+ * @param[in]  *pv_data    Arguments from xTaskCreate
  * @return     none
  **/
 static void ucan_write_data(void *pv_data)
@@ -74,7 +74,7 @@ static void ucan_write_data(void *pv_data)
  * @brief      Task which reads can messages and sends them to the can message
  *             queue
  * @type       static
- * @param[in]  void      *pv_data   Arguments from xTaskCreate
+ * @param[in]  *pv_data   Arguments from xTaskCreate
  * @return     none
  **/
 static void ucan_read_data(void *pv_data)
@@ -97,7 +97,7 @@ static void ucan_read_data(void *pv_data)
 /**
  * @brief       Read incomming can messages from the rx_queue and forward them to the according message queue
  * @type        static
- * @param[in]   void    *pv_data    Arguments from xTaskCreate
+ * @param[in]   *pv_data    Arguments from xTaskCreate
  * @return      none
  **/
 static void ucan_dispatch_data(void *pv_data)
@@ -164,10 +164,10 @@ static void ucan_setup_acceptance_filter(void)
 /**
  * @brief       Set a message mask to map multiple message to a queue
  * @type        global
- * @param[in]   uint16_t        mask            Binary mask for filtering
- * @param[in]   uint16_t        message_id      Unique integer which serves as id for the queue
- * @param[in]   QueueHandle_t   queue           FreeRTOS message queue
- * @return      bool            True if successful false if there is not enough space left
+ * @param[in]   mask            Binary mask for filtering
+ * @param[in]   message_id      Unique integer which serves as id for the queue
+ * @param[in]   queue           FreeRTOS message queue
+ * @return      True if successful false if there is not enough space left
  **/
 bool ucan_link_message_to_queue_mask(uint16_t mask, uint16_t message_id, QueueHandle_t queue)
 {
@@ -189,9 +189,9 @@ bool ucan_link_message_to_queue_mask(uint16_t mask, uint16_t message_id, QueueHa
 /**
  * @brief       Link a single message type to a queue
  * @type        global
- * @param[in]   uint16_t        message_id      Unique integer which serves as id for the queue
- * @param[in]   QueueHandle_t   queue           FreeRTOS message queue
- * @return      bool            True if successful false if there is not enough space left
+ * @param[in]   message_id      Unique integer which serves as id for the queue
+ * @param[in]   queue           FreeRTOS message queue
+ * @return      True if successful false if there is not enough space left
  **/
 bool ucan_link_message_to_queue(uint16_t message_id, QueueHandle_t queue)
 {
@@ -201,7 +201,7 @@ bool ucan_link_message_to_queue(uint16_t message_id, QueueHandle_t queue)
 /**
  * @brief       Initialize the hardware and call each init function
  * @type        global
- * @return      bool    True if successful
+ * @return      True if successful
  **/
 bool ucan_init(void)
 {
@@ -250,10 +250,10 @@ bool ucan_init(void)
 /**
  * @brief       Send data to the can output message queue
  * @type        global
- * @param[in]   uint16_t    message_id      Unique integer which serves as id for the queue
- * @param[in]   uint8_t     n_data_bytes    Size of the payload in bytes
- * @param[in]   uint8_t     *data           Payload data to transmit
- * @return      bool        True if successful
+ * @param[in]   message_id      Unique integer which serves as id for the queue
+ * @param[in]   n_data_bytes    Size of the payload in bytes
+ * @param[in]   *data           Payload data to transmit
+ * @return      True if successful
  **/
 bool ucan_send_data(uint8_t n_data_bytes, uint16_t msg_id, const uint8_t *data)
 {

@@ -73,8 +73,8 @@
 #define GRIPPER_MIN 0
 
 enum arm_select {arm_left=belt_left, //!< the left arm
-                  arm_right=belt_right//!< the right arm
-                 };
+                 arm_right=belt_right//!< the right arm
+                };
 
 //----- Data types -------------------------------------------------------------
 
