@@ -16,6 +16,15 @@
  * MA  02110-1301, USA.
  *
  *****************************************************************************/
+
+/**
+ * @defgroup bcs Block Conveyer System
+ * @brief Module controlling the Block Conveyer System and the dispatcher
+ */
+/*@{*/
+
+
+
 #include "display.h"
 #include <FreeRTOS.h>
 #include <stdio.h>
@@ -414,3 +423,5 @@ void bcs_init()
     ucan_link_message_to_queue_mask(0xFF0,belt_left,ucan_queue_left);
     ucan_link_message_to_queue_mask(0xFF0,belt_right,ucan_queue_right);
 }
+
+/*@}*/

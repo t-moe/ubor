@@ -4,21 +4,21 @@
 
 There are mainly two configuration values:
 
-* One is in the file `bcs.c`, the define `MAX_BLOCK_COUNT`. Set this to the number of blocks you want to work with (between 2 and 4).
+* One is in the file `bcs.c`, the define [MAX_BLOCK_COUNT](@ref MAX_BLOCK_COUNT). Set this to the number of blocks you want to work with (between 2 and 4).
 * The other configuration can happen at runtime. Use the DIP Switch 1, to switch between manaual and automatic direction choosing (for the dispatcher). Use the DIP Switch 2, to select the direction (left or right) in manual mode.
 
 ## Starting of the model
 
-After flashing the firmware to the carme, place `MAX_BLOCK_COUNT` onto the mid belt. One after each other, and always wait until one is moved away, before you place the next block.
+After flashing the firmware to the carme, place [MAX_BLOCK_COUNT](@ref MAX_BLOCK_COUNT) onto the mid belt. One after each other, and always wait until one is moved away, before you place the next block.
 
 ## File & Module & Task Description
 
 | Module | Files  | Tasks | Description |
 | ------|----- | ------- |---- |
-| ucan | ucan.c, ucan.h | `CAN_Write_Task`, `CAN_Read_Task`, `CAN_Dispatch_Task` | Provides utilities to send and receive data from the CAN-Bus. Sending is done by calling the function `ucan_send_data`. To receive data, the modules can register themself using `ucan_link_message_to_queue`. |
-| display | display.c, display.h | `Display Task` | Utilites to log stuff on the display. The function `display_log` can be used like printf (vargs!) and either logs your message to a new line in the log (together with the task name) or changes an existing line in the (scrolling) log. |
-| arm | arm.c, arm.h | `Arm Left`, `Arm Right`, `Manual Arm Movement`  | Controls the robot arms. The positions are stored in two fixed arrays. To manually move the arm (using the buttons and switches) the task `Manual Arm Movement`  can be uncommented. |
-| bcs | bcs.c, bcs.h | `mid`, `left`, `right` | Controls the belt conveyer system and the dispatcher. Provides a set of functions which are used by the arm tasks for synchronization. |
+| [ucan](@ref ucan)  | ucan.c, ucan.h | `CAN_Write_Task`, `CAN_Read_Task`, `CAN_Dispatch_Task` | Provides utilities to send and receive data from the CAN-Bus. Sending is done by calling the function `ucan_send_data`. To receive data, the modules can register themself using `ucan_link_message_to_queue`. |
+| [display](@ref display)  | display.c, display.h | `Display Task` | Utilites to log stuff on the display. The function `display_log` can be used like printf (vargs!) and either logs your message to a new line in the log (together with the task name) or changes an existing line in the (scrolling) log. |
+| [arm](@ref arm)  | arm.c, arm.h | `Arm Left`, `Arm Right`, `Manual Arm Movement`  | Controls the robot arms. The positions are stored in two fixed arrays. To manually move the arm (using the buttons and switches) the task `Manual Arm Movement`  can be uncommented. |
+| [bcs](@ref bcs)  | bcs.c, bcs.h | `mid`, `left`, `right` | Controls the belt conveyer system and the dispatcher. Provides a set of functions which are used by the arm tasks for synchronization. |
 | main | main.c | *none* | Calls the init function of all modules (which spawns the tasks) |
 
 

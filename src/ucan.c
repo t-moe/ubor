@@ -16,6 +16,12 @@
  * MA  02110-1301, USA.
  *
  *****************************************************************************/
+/**
+ * @defgroup ucan ubor CAN
+ * @brief Utility to send and receive CAN messages
+ */
+/*@{*/
+
 #include "ucan.h"
 
 /* ----- Definitions --------------------------------------------------------*/
@@ -271,3 +277,5 @@ bool ucan_send_data(uint8_t n_data_bytes, uint16_t msg_id, const uint8_t *data)
 
     return true;
 }
+
+/*@}*/

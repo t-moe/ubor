@@ -1,3 +1,10 @@
+/**
+ * @defgroup display Display
+ * @brief Utility to control the display and log messages
+ */
+/*@{*/
+
+
 /*****************************************************************************
  *
  * This program is free software; you can redistribute it and/or
@@ -205,3 +212,4 @@ void display_init()
 
 }
 
+/*@}*/
