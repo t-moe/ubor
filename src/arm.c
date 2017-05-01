@@ -72,14 +72,18 @@
 #define GRIPPER_MAX 1
 #define GRIPPER_MIN 0
 
+enum arm_select {arm_left=belt_left, //!< the left arm
+                  arm_right=belt_right//!< the right arm
+                 };
+
 //----- Data types -------------------------------------------------------------
 
 //----- Function prototypes ----------------------------------------------------
-static  void  wait_until_pos(uint8_t *pos, int side);
+static  void  wait_until_pos(uint8_t *pos, enum arm_select side);
 
 //----- Data -------------------------------------------------------------------
 static QueueHandle_t robot_left_queue;
-static QueueHandle_t robot_left_queue;
+static QueueHandle_t robot_right_queue;
 static QueueHandle_t robot_manual_queue;
 
 static SemaphoreHandle_t arm_mid_air_mutex;
@@ -135,15 +139,15 @@ static void arm_leave_critical_air_space()
  *
  *  @return     none
 **/
-void move_roboter(void *pvData)
+void move_roboter(void *pv_data)
 {
 
-    int left_right_sel = (int)pvData;
+    enum arm_select left_right_sel = (enum arm_select)pv_data;
     uint8_t *pos_arm;
     int id_arm_comand_request;
 
     /* Init */
-    if(left_right_sel == 0) {
+    if(left_right_sel == arm_right) {
         static uint8_t pos_arm_right[11][6] = {
             /*                      Arm    B     S     E     H     G  */
             /*0 Nullposition     */ {0x02, 0x00, 0x19, 0x1A, 0x21, 0x01},
@@ -162,8 +166,8 @@ void move_roboter(void *pvData)
         arm_mid_air_mutex = xSemaphoreCreateBinary();
         xSemaphoreGive(arm_mid_air_mutex);
 
-        robot_left_queue = xQueueCreate(MSG_QUEUE_SIZE, sizeof(CARME_CAN_MESSAGE));
-        ucan_link_message_to_queue(ROBOT_R_STATUS_RETURN_ID, robot_left_queue);
+        robot_right_queue = xQueueCreate(MSG_QUEUE_SIZE, sizeof(CARME_CAN_MESSAGE));
+        ucan_link_message_to_queue(ROBOT_R_STATUS_RETURN_ID, robot_right_queue);
 
         pos_arm = (uint8_t *)pos_arm_right;
         id_arm_comand_request = ROBOT_R_COMAND_REQUEST_ID;
@@ -171,7 +175,7 @@ void move_roboter(void *pvData)
         ucan_send_data(0, ROBOT_R_RESET_ID, 0);
     }
 
-    if(left_right_sel == 1) {
+    if(left_right_sel == arm_left) {
         static uint8_t pos_arm_left[11][6] = {
             /*                      Arm    B     S     E     H     G     x     x */
             {0x02, 0x00, 0x19, 0x1A, 0x21, 0x01}, //Warte Position ECTS Abholen
@@ -206,7 +210,7 @@ void move_roboter(void *pvData)
             //before we want to grab the block
             if(n==1) {
                 int8_t pos;
-                pos = bcs_grab(left_right_sel == 1 ? belt_left : belt_right);
+                pos = bcs_grab(left_right_sel);
                 display_log(DISPLAY_NEWLINE,"block is at pos %d",pos);
             }
 
@@ -224,7 +228,7 @@ void move_roboter(void *pvData)
             wait_until_pos(&pos_arm[n*6], left_right_sel);
 
             if(n==3) { //after we picked up a block
-                bcs_signal_band_free(left_right_sel == 1 ? belt_left : belt_right);
+                bcs_signal_band_free(left_right_sel);
             }
 
             if(n== 8) { //after we dropped a block
@@ -251,12 +255,12 @@ void move_roboter(void *pvData)
  *
  *  @return     none
  **/
-static void wait_until_pos(uint8_t *pos, int side)
+static void wait_until_pos(uint8_t *pos, enum arm_select side)
 {
     uint8_t *temp = (uint8_t *)pos;
     bool close_enough = false;
 
-    if(side == 0) {
+    if(side == arm_right) {
         //display_log(DISPLAY_NEWLINE, "Right arm wait until position reached");
 
         while(close_enough != true) {
@@ -264,7 +268,7 @@ static void wait_until_pos(uint8_t *pos, int side)
             ucan_send_data(STATUS_REQEST_DLC, ROBOT_R_STATUS_REQUEST_ID, status_request );
 
 
-            xQueueReceive(robot_left_queue, (void *)&robot_msg_buffer_right, portMAX_DELAY);
+            xQueueReceive(robot_right_queue, (void *)&robot_msg_buffer_right, portMAX_DELAY);
             close_enough = true;
             for(int i=1; i<6; i++) {
                 if(abs(temp[i]-robot_msg_buffer_right.data[i])>0x01) {
@@ -313,14 +317,14 @@ void init_arm()
     xTaskCreate(move_roboter,
                 "Arm Left",
                 ARM_TASK_STACKSIZE,
-                (void*)1,
+                (void*)arm_left,
                 ARM_TASK_PRIORITY,
                 NULL);
 
     xTaskCreate(move_roboter,
                 "Arm Right",
                 ARM_TASK_STACKSIZE,
-                (void*)0,
+                (void*)arm_right,
                 ARM_TASK_PRIORITY,
                 NULL);
     /*
