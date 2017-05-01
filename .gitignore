@@ -32,9 +32,6 @@
 *.su
 *.swp
 
-# Atollic stuff
-.settings/
-.cproject
 
 # Build folder
 build
