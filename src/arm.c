@@ -1,25 +1,3 @@
-/******************************************************************************/
-/** \file       arm.c
- *******************************************************************************
- *
- *  \brief      Functions to move roboter
- *
- *  \author     ingmacmech
- *
- *  \date       03.04.2017
- *
- *  \remark     Last Modification
- *               \li ingmacmech, 03.04.2017, Created
- *
- *
- ******************************************************************************/
-/*
- *  functions  global:
- *
- *  functions  local:
- *              .
- *
- ******************************************************************************/
 
 //----- Header-Files -----------------------------------------------------------
 #include <stdio.h>                      /* Standard Input/Output              */
@@ -44,29 +22,85 @@
 #define BUTTON_T2 0x04
 #define BUTTON_T3 0x08
 
+// Left
+#define ROBOT_L_STATUS_REQUEST_ID   0x150
+#define ROBOT_L_STATUS_RETURN_ID    0x151
+#define ROBOT_L_COMAND_REQUEST_ID   0x152
+#define ROBOT_L_COMAND_RETURN_ID    0x153
+#define ROBOT_L_RESET_ID            0x15F
+#define COMAND_DLC                  0x006
+#define STATUS_REQEST_DLC           0x002
+
+
+// Right
+#define ROBOT_R_STATUS_REQUEST_ID   0x160
+#define ROBOT_R_STATUS_RETURN_ID    0x161
+#define ROBOT_R_COMAND_REQUEST_ID   0x162
+#define ROBOT_R_COMAND_RETURN_ID    0x163
+#define ROBOT_R_RESET_ID            0x16F
+
+#define MASK_SWITCH_0               0x01
+#define MASK_SWITCH_1               0x02
+#define MASK_SWITCH_2               0x04
+#define MASK_SWITCH_3               0x08
+#define MASK_SWITCH_4               0x10
+
+
+#define BLOCK_TIME_MIDDLE_POS 200000 // block time for mutex midle position
+#define MSG_QUEUE_SIZE 1
+#define ARM_TASK_PRIORITY 2
+#define ARM_TASK_STACKSIZE 256
+#define TASK_DELAY 100
+#define GRIPPER_MAX 1
+#define GRIPPER_MIN 0
+
 //----- Data types -------------------------------------------------------------
 
 //----- Function prototypes ----------------------------------------------------
+static  void  wait_until_pos(uint8_t *pos, int side);
 
 //----- Data -------------------------------------------------------------------
-static QueueHandle_t queueRobotLeft;
-static QueueHandle_t queueRobotRight;
-static QueueHandle_t queueRobotManual;
+static QueueHandle_t robot_left_queue;
+static QueueHandle_t robot_left_queue;
+static QueueHandle_t robot_manual_queue;
+
 static SemaphoreHandle_t arm_mid_air_mutex;
-CARME_CAN_MESSAGE pcMsgBufferRight;
-CARME_CAN_MESSAGE pcMsgBufferLeft;
+
+CARME_CAN_MESSAGE robot_msg_buffer_right;
+CARME_CAN_MESSAGE robot_msg_buffer_left;
 
 uint8_t status_request[2] = {0x02,0x00};
 //----- Implementation ---------------------------------------------------------
 
 
-
+/**
+ * @brief       Controls the airspace in the middle position. This position is
+ * 			    protected with a mutex. Before enter the critical area this
+ * 			    function takes the mutex.
+ *
+ *  @type       static
+ *
+ *  @param[in]  none
+ *
+ *  @return     none
+**/
 static void arm_enter_critical_air_space()
 {
     display_log(DISPLAY_NEWLINE, "take semaphore mid");
     xSemaphoreTake(arm_mid_air_mutex, portMAX_DELAY); //to protect the airspace around mid
 }
 
+/**
+ * @brief       Controls the airspace in the middle position. This position is
+ * 			    protected with a mutex. After exit the critical area this
+ * 			    function give the mutex.
+ *
+ *  @type       static
+ *
+ *  @param[in]  none
+ *
+ *  @return     none
+ **/
 static void arm_leave_critical_air_space()
 {
     display_log(DISPLAY_NEWLINE, "give semaphore mid");
@@ -74,26 +108,25 @@ static void arm_leave_critical_air_space()
 }
 
 
-/*******************************************************************************
- *  function :    vMoveRoboter
- ******************************************************************************/
-/** \brief
+/**
+ * @brief       Task for left and right arm.
  *
- *  \type         global
+ *  @type       public
  *
- *  \return       void
+ *  @param[in]  *pvData chose left(0) or right(1) arm
  *
- ******************************************************************************/
-void vMoveRoboter(void *pvData)
+ *  @return     none
+**/
+void move_roboter(void *pvData)
 {
 
-    int leftRightSel = (int)pvData;
-    uint8_t *posArm;
+    int left_right_sel = (int)pvData;
+    uint8_t *pos_arm;
     int id_arm_comand_request;
 
     /* Init */
-    if(leftRightSel == 0) {
-        static uint8_t posArmRight[11][6] = {
+    if(left_right_sel == 0) {
+        static uint8_t pos_arm_right[11][6] = {
             /*                      Arm    B     S     E     H     G  */
             /*0 Nullposition     */ {0x02, 0x00, 0x19, 0x1A, 0x21, 0x01},
             /*1 StartPosition    */ {0x02, 0x00, 0x1F, 0x1A, 0x21, 0x01},
@@ -111,17 +144,17 @@ void vMoveRoboter(void *pvData)
         arm_mid_air_mutex = xSemaphoreCreateBinary();
         xSemaphoreGive(arm_mid_air_mutex);
 
-        queueRobotRight = xQueueCreate(MSG_QUEUE_SIZE, sizeof(CARME_CAN_MESSAGE));
-        ucan_link_message_to_queue(ROBOT_R_STATUS_RETURN_ID, queueRobotRight);
+        robot_left_queue = xQueueCreate(MSG_QUEUE_SIZE, sizeof(CARME_CAN_MESSAGE));
+        ucan_link_message_to_queue(ROBOT_R_STATUS_RETURN_ID, robot_left_queue);
 
-        posArm = (uint8_t *)posArmRight;
+        pos_arm = (uint8_t *)pos_arm_right;
         id_arm_comand_request = ROBOT_R_COMAND_REQUEST_ID;
 
         ucan_send_data(0, ROBOT_R_RESET_ID, 0);
     }
 
-    if(leftRightSel == 1) {
-        static uint8_t posArmLeft[11][6] = {
+    if(left_right_sel == 1) {
+        static uint8_t pos_arm_left[11][6] = {
             /*                      Arm    B     S     E     H     G     x     x */
             {0x02, 0x00, 0x19, 0x1A, 0x21, 0x01}, //Warte Position ECTS Abholen
             {0x02, 0x00, 0x1F, 0x1A, 0x21, 0x01}, //ECTS Holen Mitte
@@ -136,11 +169,11 @@ void vMoveRoboter(void *pvData)
             {0x02, 0x12, 0x00, 0x36, 0x21, 0x01}, //Arm ausserhalb mitte
         };
 
-        posArm = (uint8_t *)posArmLeft;
+        pos_arm = (uint8_t *)pos_arm_left;
         id_arm_comand_request = ROBOT_L_COMAND_REQUEST_ID;
 
-        queueRobotLeft = xQueueCreate(MSG_QUEUE_SIZE, sizeof(CARME_CAN_MESSAGE));
-        ucan_link_message_to_queue(ROBOT_L_STATUS_RETURN_ID, queueRobotLeft);
+        robot_left_queue = xQueueCreate(MSG_QUEUE_SIZE, sizeof(CARME_CAN_MESSAGE));
+        ucan_link_message_to_queue(ROBOT_L_STATUS_RETURN_ID, robot_left_queue);
 
         ucan_send_data(0, ROBOT_L_RESET_ID, 0 );
     }
@@ -155,7 +188,7 @@ void vMoveRoboter(void *pvData)
             //before we want to grab the block
             if(n==1) {
                 int8_t pos;
-                pos = bcs_grab(leftRightSel == 1 ? belt_left : belt_right);
+                pos = bcs_grab(left_right_sel == 1 ? belt_left : belt_right);
                 display_log(DISPLAY_NEWLINE,"block is at pos %d",pos);
             }
 
@@ -169,11 +202,11 @@ void vMoveRoboter(void *pvData)
 
 
 
-            ucan_send_data(COMAND_DLC, id_arm_comand_request, &posArm[n*6] );
-            waitUntilPos(&posArm[n*6], leftRightSel);
+            ucan_send_data(COMAND_DLC, id_arm_comand_request, &pos_arm[n*6] );
+            wait_until_pos(&pos_arm[n*6], left_right_sel);
 
             if(n==3) { //after we picked up a block
-                bcs_signal_band_free(leftRightSel == 1 ? belt_left : belt_right);
+                bcs_signal_band_free(left_right_sel == 1 ? belt_left : belt_right);
             }
 
             if(n== 8) { //after we dropped a block
@@ -190,24 +223,34 @@ void vMoveRoboter(void *pvData)
     }
 }
 
-void waitUntilPos(uint8_t *pos, int side)
+/**
+ * @brief       Checks the arm position and waits until the desired position
+ * 				is reached.
+ *
+ *  @type       public
+ *
+ *  @param[in]  *pos: the position to reach / side: left or right arm
+ *
+ *  @return     none
+ **/
+static void wait_until_pos(uint8_t *pos, int side)
 {
     uint8_t *temp = (uint8_t *)pos;
-    bool closeEnough = false;
+    bool close_enough = false;
 
     if(side == 0) {
         //display_log(DISPLAY_NEWLINE, "Right arm wait until position reached");
 
-        while(closeEnough != true) {
+        while(close_enough != true) {
             vTaskDelay(200);
             ucan_send_data(STATUS_REQEST_DLC, ROBOT_R_STATUS_REQUEST_ID, status_request );
 
 
-            xQueueReceive(queueRobotRight, (void *)&pcMsgBufferRight, portMAX_DELAY);
-            closeEnough = true;
+            xQueueReceive(robot_left_queue, (void *)&robot_msg_buffer_right, portMAX_DELAY);
+            close_enough = true;
             for(int i=1; i<6; i++) {
-                if(abs(temp[i]-pcMsgBufferRight.data[i])>0x01) {
-                    closeEnough = false;
+                if(abs(temp[i]-robot_msg_buffer_right.data[i])>0x01) {
+                    close_enough = false;
                     break;
                 }
             }
@@ -216,17 +259,17 @@ void waitUntilPos(uint8_t *pos, int side)
         //display_log(DISPLAY_NEWLINE, "Right arm reached position");
     } else {
         //display_log(DISPLAY_NEWLINE, "Left arm wait until position reached");
-        while(closeEnough != true) {
+        while(close_enough != true) {
 
             vTaskDelay(200);
 
             ucan_send_data(STATUS_REQEST_DLC, ROBOT_L_STATUS_REQUEST_ID, status_request );
 
-            xQueueReceive(queueRobotLeft, (void *)&pcMsgBufferLeft, portMAX_DELAY);
-            closeEnough = true;
+            xQueueReceive(robot_left_queue, (void *)&robot_msg_buffer_left, portMAX_DELAY);
+            close_enough = true;
             for(int i=1; i<6; i++) {
-                if(abs(temp[i]-pcMsgBufferLeft.data[i])>0x01) {
-                    closeEnough = false;
+                if(abs(temp[i]-robot_msg_buffer_left.data[i])>0x01) {
+                    close_enough = false;
                     break;
                 }
             }
@@ -237,24 +280,33 @@ void waitUntilPos(uint8_t *pos, int side)
     vTaskDelay(1000);
 }
 
+/**
+ * @brief       Creates the arm tasks.
+ *
+ *  @type       public
+ *
+ *  @param[in]  none
+ *
+ *  @return     none
+ **/
 void init_arm()
 {
 
-    xTaskCreate(vMoveRoboter,
+    xTaskCreate(move_roboter,
                 "Arm Left",
                 ARM_TASK_STACKSIZE,
                 (void*)1,
                 ARM_TASK_PRIORITY,
                 NULL);
 
-    xTaskCreate(vMoveRoboter,
+    xTaskCreate(move_roboter,
                 "Arm Right",
                 ARM_TASK_STACKSIZE,
                 (void*)0,
                 ARM_TASK_PRIORITY,
                 NULL);
     /*
-        xTaskCreate(vManualArmMovment,
+        xTaskCreate(manual_arm_movement,
                     "Manual Arm Movement",
                     ARM_TASK_STACKSIZE,
                     NULL,
@@ -263,86 +315,97 @@ void init_arm()
 }
 
 
-/*
- * Switch 0: select left or right arm
- * Switch 1: increment or decrement position value
- * Switch 2: gripper open or close
+
+
+/**
+ * @brief       Task to move the roboter with the Buttons. To create this
+ * 				task unkomment it in the function init_arm()
  *
- * Button 0: change value of basis
- * Button 1: change value of shoulder
- * Button 2: change value of elbow
- * Button 3: change value of hand
-*/
-
-
-void vManualArmMovment(void *pvData)
+ *  @type       public
+ *
+ *  @param[in]  *pvData not used
+ *
+ *  @return     none
+ **/
+void manual_arm_movement(void *pvData)
 {
-    uint8_t buttonData;
-    uint8_t switchData;
+	/*
+	 * Switch 0: select left or right arm
+	 * Switch 1: increment or decrement position value
+	 * Switch 2: gripper open or close
+	 *
+	 * Button 0: change value of basis
+	 * Button 1: change value of shoulder
+	 * Button 2: change value of elbow
+	 * Button 3: change value of hand
+	*/
 
-    uint8_t posManuel[6] = {0x02, 0x00, 0x00, 0x00, 0x00, 0x00};
+    uint8_t button_data;
+    uint8_t switch_data;
+
+    uint8_t pos_manuel[6] = {0x02, 0x00, 0x00, 0x00, 0x00, 0x00};
     bool increment = false;
-    bool leftSelect = false;
+    bool left_select = false;
 
-    CARME_CAN_MESSAGE pcMsgBuffer;
-    queueRobotManual = xQueueCreate(MSG_QUEUE_SIZE, sizeof(CARME_CAN_MESSAGE));
-    ucan_link_message_to_queue(ROBOT_R_STATUS_RETURN_ID, queueRobotManual);
-    ucan_link_message_to_queue(ROBOT_L_STATUS_RETURN_ID, queueRobotManual);
+    CARME_CAN_MESSAGE robot_msg_buffer_manual;
+    robot_manual_queue = xQueueCreate(MSG_QUEUE_SIZE, sizeof(CARME_CAN_MESSAGE));
+    ucan_link_message_to_queue(ROBOT_R_STATUS_RETURN_ID, robot_manual_queue);
+    ucan_link_message_to_queue(ROBOT_L_STATUS_RETURN_ID, robot_manual_queue);
 
     while(1) {
-        CARME_IO1_BUTTON_Get(&buttonData);
-        CARME_IO1_SWITCH_Get(&switchData);
+        CARME_IO1_BUTTON_Get(&button_data);
+        CARME_IO1_SWITCH_Get(&switch_data);
 
-        if( (switchData & MASK_SWITCH_0) != 0) {
-            leftSelect = true;
+        if( (switch_data & MASK_SWITCH_0) != 0) {
+            left_select = true;
         } else {
-            leftSelect = false;
+            left_select = false;
         }
 
-        if( (switchData & MASK_SWITCH_1 ) != 0) {
+        if( (switch_data & MASK_SWITCH_1 ) != 0) {
             increment = true;
         } else {
             increment = false;
         }
 
-        if( (switchData & MASK_SWITCH_2) != 0) {
-            posManuel[5] = GRIPPER_MAX;
+        if( (switch_data & MASK_SWITCH_2) != 0) {
+            pos_manuel[5] = GRIPPER_MAX;
         } else {
-            posManuel[5] = GRIPPER_MIN;
+            pos_manuel[5] = GRIPPER_MIN;
         }
 
 
-        switch(buttonData) {
+        switch(button_data) {
 
         case BUTTON_T0:
             if(increment == true) {
-                posManuel[1]++;
+                pos_manuel[1]++;
             } else {
-                posManuel[1]--;
+                pos_manuel[1]--;
             }
             break;
 
         case BUTTON_T1:
             if(increment == true) {
-                posManuel[2]++;;
+                pos_manuel[2]++;;
             } else {
-                posManuel[2]--;
+                pos_manuel[2]--;
             }
             break;
 
         case BUTTON_T2:
             if(increment == true) {
-                posManuel[3]++;
+                pos_manuel[3]++;
             } else {
-                posManuel[3]--;
+                pos_manuel[3]--;
             }
             break;
 
         case BUTTON_T3:
             if(increment == true) {
-                posManuel[4]++;
+                pos_manuel[4]++;
             } else {
-                posManuel[4]--;
+                pos_manuel[4]--;
             }
             break;
         default:
@@ -350,27 +413,27 @@ void vManualArmMovment(void *pvData)
         }
 
 
-        if(leftSelect == true) {
-            ucan_send_data(COMAND_DLC, ROBOT_L_COMAND_REQUEST_ID, posManuel);
+        if(left_select == true) {
+            ucan_send_data(COMAND_DLC, ROBOT_L_COMAND_REQUEST_ID, pos_manuel);
             vTaskDelay(20);
             ucan_send_data(STATUS_REQEST_DLC, ROBOT_L_STATUS_REQUEST_ID, status_request );
             vTaskDelay(20);
-            xQueueReceive(queueRobotManual, (void *)&pcMsgBuffer, portMAX_DELAY);
+            xQueueReceive(robot_manual_queue, (void *)&robot_msg_buffer_manual, portMAX_DELAY);
             vTaskDelay(20);
         } else {
-            ucan_send_data(COMAND_DLC, ROBOT_R_COMAND_REQUEST_ID, posManuel);
+            ucan_send_data(COMAND_DLC, ROBOT_R_COMAND_REQUEST_ID, pos_manuel);
             vTaskDelay(20);
             ucan_send_data(STATUS_REQEST_DLC, ROBOT_R_STATUS_REQUEST_ID, status_request );
-            xQueueReceive(queueRobotManual, (void *)&pcMsgBuffer, portMAX_DELAY);
+            xQueueReceive(robot_manual_queue, (void *)&robot_msg_buffer_manual, portMAX_DELAY);
             vTaskDelay(20);
         }
 
-        display_log(DISPLAY_NEWLINE,"Position: %x %x %x %x %x %x",pcMsgBufferRight.data[0],
-                    pcMsgBuffer.data[1],
-                    pcMsgBuffer.data[2],
-                    pcMsgBuffer.data[3],
-                    pcMsgBuffer.data[4],
-                    pcMsgBuffer.data[5]);
+        display_log(DISPLAY_NEWLINE,"Position: %x %x %x %x %x %x",robot_msg_buffer_right.data[0],
+                    robot_msg_buffer_manual.data[1],
+                    robot_msg_buffer_manual.data[2],
+                    robot_msg_buffer_manual.data[3],
+                    robot_msg_buffer_manual.data[4],
+                    robot_msg_buffer_manual.data[5]);
 
     }
 
