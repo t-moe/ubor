@@ -88,7 +88,7 @@ syntax:
 
 doxygen:
 	$(DOXY)
-	cp $(DOC_DIR)/*.{jpg,png} $(DOC_DIR)/html
+	cp $(DOC_DIR)/*.{jpg,png} docs
 
 #Debug target: starts the st-util server and gdb and leaves it open
 debug: start all

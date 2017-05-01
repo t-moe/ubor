@@ -1,0 +1,7 @@
+<map id="main" name="main">
+<area shape="rect" id="node2" href="$group__ucan.html#ga8fcc50d318015e1834e0432478a03bf1" title="Initialize the hardware and call each init function &#160;global. " alt="" coords="116,5,197,32"/>
+<area shape="rect" id="node3" href="$group__display.html#ga8d41c12af4f6e6faad84e1f21f99b3e1" title="Initializes the display and starts the display task &#160;global. " alt="" coords="108,56,205,83"/>
+<area shape="rect" id="node4" href="$group__bcs.html#ga2559f48beee4d302ebeb07d0357ef96c" title="Initializes the belt conveyer system and starts the belt tasks &#160;global. " alt="" coords="121,107,193,133"/>
+<area shape="rect" id="node5" href="$group__arm.html#gabfddbe9f2e38a4e6510ff561059f5ca2" title="Creates the arm tasks. " alt="" coords="119,157,195,184"/>
+<area shape="rect" id="node6" href="$group__arm.html#ga3dc7b7d012ee45565010fe1053076796" title="Task for left and right arm. " alt="" coords="253,157,367,184"/>
+</map>

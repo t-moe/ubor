@@ -1,0 +1,4 @@
+<map id="move_roboter" name="move_roboter">
+<area shape="rect" id="node2" href="$group__arm.html#gabfddbe9f2e38a4e6510ff561059f5ca2" title="Creates the arm tasks. " alt="" coords="167,5,243,32"/>
+<area shape="rect" id="node3" href="$main_8c.html#a840291bc02cba5474a4cb46a9b9566fe" title="Main function which calls the scheduler. " alt="" coords="291,5,345,32"/>
+</map>
