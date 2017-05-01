@@ -28,31 +28,41 @@
 
 
 // -------------------- Configuration  ------------
-#define STACKSIZE_TASK        ( 256 )
-#define PRIORITY_TASK         ( 3 ) //  low priority number denotes low priority task
+#define STACKSIZE_TASK        ( 256 ) //!< Stack size of the display task
+#define PRIORITY_TASK         ( 3 ) //!< Priority of the Display task  (low priority number denotes low priority task)
 
-#define QUEUE_SIZE 10
+#define QUEUE_SIZE 10 //!< Size of the message queue
 
-#define DISPLAY_LINES   30
-#define DISPLAY_CHARS   64
+#define DISPLAY_LINES   30 //!< Number of lines that fit on the display (vertically)
+#define DISPLAY_CHARS   64 //!< Number of horizontal characters that can be displayed
 
 
 // ------------------ Implementation ------------------------
 
+/**
+  @brief Structure to describe a log message
+  */
 typedef struct {
-    const char* taskname;
-    uint8_t id;
-    char message[DISPLAY_CHARS+1];
-} message_t;
+    const char* taskname; //!< Name of the task that wrote the message
+    uint8_t id; //!< Id that was assigned to the task
+    char message[DISPLAY_CHARS+1]; //!< Message (formatted)
+} log_message_t;
 
-static uint8_t last_given_id = 0;
-static QueueHandle_t display_queue;
-static SemaphoreHandle_t display_id_mutex;
+static uint8_t last_given_id = 0; //!< last given message id
+static QueueHandle_t display_queue; //!< Queue to send messages to the display task
+static SemaphoreHandle_t display_id_mutex; //!< Mutex so ensure atomic operations on last_given_id
 
-
+/**
+ * @brief       Logs a message to the display
+ * @type        global
+ * @param[in]   uint8_t  id  Message-ID to overwrite. Pass \ref DISPLAY_NEWLINE to create a new message
+ * @param[in]   const char*  fmtstr  Printf formatstring
+ * @param[in]   ...    Arguments for format specification
+ * @return      uint8_t Id of the message that was printed
+ **/
 uint8_t display_log(uint8_t id, const char *fmtstr, ...)
 {
-    message_t msg; //Buffer for message. must be on stack (multi-task env)
+    log_message_t msg; //Buffer for message. must be on stack (multi-task env)
 
     //Generate string from formatstring + arguments
     va_list args;
@@ -89,7 +99,14 @@ uint8_t display_log(uint8_t id, const char *fmtstr, ...)
 }
 
 
-void display_print_message(uint8_t line, message_t* msg)
+/**
+ * @brief       Prints a single message on the display
+ * @type        static
+ * @param[in]   uint8_t  line  line to print the message on
+ * @param[in]   message_t*  msg  message to print
+ * @return      bool
+ **/
+static void display_print_message(uint8_t line, log_message_t* msg)
 {
     uint8_t x=0;
 
@@ -115,19 +132,23 @@ void display_print_message(uint8_t line, message_t* msg)
 }
 
 
-uint8_t visible_messages=0;
-uint8_t buffer_offset = 0;
-message_t message_buffer[DISPLAY_LINES];
+uint8_t visible_messages=0; //!< Number of currently visible messages
+uint8_t buffer_offset = 0;  //!< Offset in the message_buffer to get to the top message
+log_message_t message_buffer[DISPLAY_LINES]; //!< buffer of all visible messages (ring buffer!)
 
 
-
-void display_task()
+/**
+ * @brief       DisplayTask that takes messages out of the queue and writes them to the display
+ * @type        static
+ * @return      none
+ **/
+static void display_task()
 {
 
     while(true) {
         uint8_t top_id = message_buffer[buffer_offset].id;
         uint8_t bottom_id  = message_buffer[(buffer_offset + visible_messages -1 )%DISPLAY_LINES].id;
-        static message_t tmp_message;
+        static log_message_t tmp_message;
         xQueueReceive(display_queue,&tmp_message,portMAX_DELAY);
         uint8_t new_id = tmp_message.id;
 
@@ -136,16 +157,16 @@ void display_task()
                 (top_id > bottom_id && new_id >= top_id)) {
             //Replace message
             uint8_t replace_buffer_index =(buffer_offset + (new_id-top_id)) % DISPLAY_LINES;
-            memcpy(&message_buffer[replace_buffer_index],&tmp_message,sizeof(message_t));
+            memcpy(&message_buffer[replace_buffer_index],&tmp_message,sizeof(log_message_t));
             display_print_message(new_id-top_id, &message_buffer[replace_buffer_index]);
         } else if(top_id > bottom_id && new_id <= bottom_id ) {
             //Replace message (and handle index wraping)
             uint8_t replace_buffer_index =(buffer_offset + visible_messages -1 - (bottom_id-new_id)) % DISPLAY_LINES;
-            memcpy(&message_buffer[replace_buffer_index],&tmp_message,sizeof(message_t));
+            memcpy(&message_buffer[replace_buffer_index],&tmp_message,sizeof(log_message_t));
             display_print_message(visible_messages -1 - (bottom_id-new_id), &message_buffer[replace_buffer_index]);
         } else { //message is new
             if(visible_messages == DISPLAY_LINES) {
-                memcpy(&message_buffer[buffer_offset],&tmp_message,sizeof(message_t));
+                memcpy(&message_buffer[buffer_offset],&tmp_message,sizeof(log_message_t));
                 buffer_offset = (buffer_offset +1) % DISPLAY_LINES;
                 for(uint8_t i =0; i< DISPLAY_LINES; i++) {
                     uint8_t buffer_index = (buffer_offset + i) % DISPLAY_LINES;
@@ -153,7 +174,7 @@ void display_task()
                 }
             } else { // Display not full yet
                 uint8_t buffer_index = (buffer_offset + visible_messages) % DISPLAY_LINES;
-                memcpy(&message_buffer[buffer_index],&tmp_message,sizeof(message_t));
+                memcpy(&message_buffer[buffer_index],&tmp_message,sizeof(log_message_t));
                 display_print_message(visible_messages,&message_buffer[buffer_index]);
                 visible_messages++;
             }
@@ -163,7 +184,11 @@ void display_task()
 
 
 
-
+/**
+ * @brief      Initializes the display and starts the display task
+ * @type       global
+ * @return     none
+ **/
 void display_init()
 {
     LCD_Init();
@@ -175,7 +200,7 @@ void display_init()
                 PRIORITY_TASK,
                 NULL);
 
-    display_queue =  xQueueCreate(QUEUE_SIZE,sizeof(message_t));
+    display_queue =  xQueueCreate(QUEUE_SIZE,sizeof(log_message_t));
     display_id_mutex = xSemaphoreCreateMutex();
 
 }

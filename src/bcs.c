@@ -28,29 +28,36 @@
 #include "bcs.h"
 
 // -------------------- Configuration  ------------
-#define STACKSIZE_TASK  256
-#define PRIORITY_TASK   2
+#define STACKSIZE_TASK  256 //!< Stack size of all bcs tasks
+#define PRIORITY_TASK   2 //!< Priority of all bcs tasks
 
-#define MAX_BLOCK_COUNT 4
+#define MAX_BLOCK_COUNT 4 //!< Number of blocks to work with. Must be between 2 and 4
 
 // ------------------ Implementation --------------
 
 #define SWITCH  ((volatile unsigned char*)(0x6C000400))
 
+/**
+  @brief BCS can message structure
+  */
 typedef struct {
-    uint16_t subid;
-    uint8_t length;
-    uint8_t data[];
+    uint16_t subid; //!< Id offset of the base-id
+    uint8_t length; //!< Data-Length of the CAN message
+    uint8_t data[]; //!< CAN data
 } message_t;
 
+
+/**
+  @brief Status message received by belt conveyer system
+  */
 typedef struct __attribute__((__packed__))
 {
-    uint8_t error;
-    uint8_t engine;
-    uint8_t lightbarrier;
-    uint8_t detection;
-    uint16_t position;
-    int8_t location;
+    uint8_t error; //!< error or not
+    uint8_t engine; //!< engines running or not
+    uint8_t lightbarrier; //!< light  barrier status
+    uint8_t detection; //!< detection status
+    uint16_t position; //!< block position (along moving axis)
+    int8_t location; //!< block location
 }
 status_t;
 
@@ -88,7 +95,13 @@ static QueueHandle_t bcs_right_end_queue; //Given by right task, taken by Arm Ri
 
 
 
-
+/**
+ * @brief       Send a CAN message to the belt conveyer system
+ * @type        static
+ * @param[in]   msg         The message to send
+ * @param[in]   baseaddress The base adress for the id
+ * @return      none
+ **/
 static void bcs_send_msg(const message_t* msg, uint16_t baseaddr)
 {
     ucan_send_data(msg->length,baseaddr + msg->subid, msg->data);
@@ -96,6 +109,14 @@ static void bcs_send_msg(const message_t* msg, uint16_t baseaddr)
 }
 
 
+/**
+ * @brief       Waits until a block is detected on the specified belt
+ * @type        static
+ * @param[in]   belt            The belt to wait for a block
+ * @param[in]   queue           The queue to receive the CAN data from
+ * @param[out]  tmp_message     The buffer where to store the temporary CAN messages
+ * @return      A pointer to the status message that was received (valid as long as tmp_message is valid)
+ **/
 static status_t* bcs_await_block(enum belt_select belt, QueueHandle_t ucan_queue, CARME_CAN_MESSAGE* tmp_message)
 {
     uint8_t statR = display_log(DISPLAY_NEWLINE,"Waiting on block...");
@@ -138,6 +159,13 @@ static status_t* bcs_await_block(enum belt_select belt, QueueHandle_t ucan_queue
 }
 
 
+
+/**
+ * @brief       Prepares a block drop operation to a specific belt
+ * @type        global
+ * @param[in]   belt    The belt a block will be dropped to
+ * @return      None
+ **/
 void bcs_prepare_drop(enum belt_select belt)
 {
 
@@ -155,6 +183,12 @@ void bcs_prepare_drop(enum belt_select belt)
     }
 }
 
+/**
+ * @brief       Signal that a block has been dropped on a belt
+ * @type        global
+ * @param[in]   belt    The belt the block has been dropped onto
+ * @return      None
+ **/
 void bcs_signal_dropped(enum belt_select belt)
 {
     switch(belt) {
@@ -171,6 +205,12 @@ void bcs_signal_dropped(enum belt_select belt)
     }
 }
 
+/**
+ * @brief       Signal that a block has been removed from a belt and the belt is free again
+ * @type        global
+ * @param[in]   belt    The belt that is now free
+ * @return      None
+ **/
 void bcs_signal_band_free(enum belt_select belt)
 {
     switch(belt) {
@@ -187,8 +227,14 @@ void bcs_signal_band_free(enum belt_select belt)
     }
 }
 
-
-void bcs_await_drop(enum belt_select belt, bool allow_skip)
+/**
+ * @brief       Awaits until a block has been dropped on the specific belt
+ * @type        static
+ * @param[in]   belt    The belt we want to wait for a block
+ * @param[in]   allow_skip Whether or not we want to abort if now block is found after a timeout.
+ * @return      None
+ **/
+static void bcs_await_drop(enum belt_select belt, bool allow_skip)
 {
 
     switch(belt) {
@@ -212,7 +258,12 @@ void bcs_await_drop(enum belt_select belt, bool allow_skip)
 }
 
 
-
+/**
+ * @brief       Instructs the system that we want to grab a block from the bcs
+ * @type        global
+ * @param[in]   belt    The belt we want to grab a block from
+ * @return      Position of the block (relative to the center of the band)
+ **/
 int8_t bcs_grab(enum belt_select belt)
 {
     int8_t pos;
@@ -224,7 +275,13 @@ int8_t bcs_grab(enum belt_select belt)
     return pos;
 }
 
-void bcs_task(void *pv_data)
+/**
+ * @brief       bcs main task
+ * @type        static
+ * @param[in]   pv_data     The belt we want to run the task for. Pass a value of belt_select here
+ * @return      None
+ **/
+static void bcs_task(void *pv_data)
 {
     enum belt_select belt = (enum belt_select)pv_data;
 
@@ -324,6 +381,11 @@ void bcs_task(void *pv_data)
     }
 }
 
+/**
+ * @brief       Initializes the belt conveyer system and starts the belt tasks
+ * @type        global
+ * @return      None
+ **/
 void bcs_init()
 {
     bcs_left_start_semaphore = xSemaphoreCreateBinary();
