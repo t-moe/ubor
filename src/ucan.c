@@ -32,7 +32,7 @@
 typedef struct msg_link_s {
     QueueHandle_t queue; //!< FreeRTOS message queue
     uint16_t message_id; //!< ID of the queue for dispatching rules
-    uint16_t mask; //<! Mask for filtering rules
+    uint16_t mask; //!< Mask for filtering rules
 } msg_link_t;
 
 /* ----- Globals ------------------------------------------------------------*/
