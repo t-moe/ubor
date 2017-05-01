@@ -46,18 +46,10 @@ static SemaphoreHandle_t can_semaphore;
 
 /* ----- Functions -----------------------------------------------------------*/
 
-
-/*******************************************************************************
- *  function :    ucan_write_data
- ******************************************************************************/
-/** @brief      Task which handles the printing of data to the message queue.
- *
- *  @type       static
- *
- *  @param[in]  void      *pv_data
- *
- *  @return     none
- ******************************************************************************/
+/**
+ * @brief writes data to the ucan
+ * @param pv_data
+ */
 static void ucan_write_data(void *pv_data)
 {
     while(true) {
