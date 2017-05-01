@@ -18,8 +18,8 @@
  *****************************************************************************/
 
 /**
- * @defgroup bcs Block Conveyer System
- * @brief Module controlling the Block Conveyer System and the dispatcher
+ * @defgroup bcs Belt Conveyer System
+ * @brief Module controlling the Belt Conveyer System and the dispatcher
  */
 /*@{*/
 
