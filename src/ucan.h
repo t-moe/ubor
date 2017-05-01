@@ -27,7 +27,6 @@
 
 #define LOG_IF(cond,...) do{ if(cond) display_log(__VA_ARGS__); } while(false)
 
-
 /*----- Data types -----------------------------------------------------------*/
 
 /*----- Function prototypes --------------------------------------------------*/

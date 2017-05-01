@@ -46,18 +46,12 @@ static SemaphoreHandle_t can_semaphore;
 
 /* ----- Functions -----------------------------------------------------------*/
 
-
-/*******************************************************************************
- *  function :    ucan_write_data
- ******************************************************************************/
-/** @brief      Task which handles the printing of data to the message queue.
- *
- *  @type       static
- *
- *  @param[in]  void      *pv_data
- *
- *  @return     none
- ******************************************************************************/
+/** 
+ * @brief      Task which handles the printing of data to the message queue.
+ * @type       static
+ * @param[in]  void     *pv_data
+ * @return     none
+ **/
 static void ucan_write_data(void *pv_data)
 {
     while(true) {
@@ -72,18 +66,13 @@ static void ucan_write_data(void *pv_data)
     }
 }
 
-/*******************************************************************************
- *  function :    ucan_read_data
- ******************************************************************************/
-/** @brief      Task which reads can messages and sends them to the can message
- *              queue
- *
- *  @type       static
- *
- *  @param[in]  void      *pv_data
- *
- *  @return     none
- ******************************************************************************/
+/** 
+ * @brief      Task which reads can messages and sends them to the can message
+ *             queue
+ * @type       static
+ * @param[in]  void      *pv_data
+ * @return     none
+ **/
 static void ucan_read_data(void *pv_data)
 {
     while(true) {
@@ -101,22 +90,12 @@ static void ucan_read_data(void *pv_data)
     }
 }
 
-/*******************************************************************************
- *  function :    ucan_dispatch_data
- ******************************************************************************/
-/** @brief
- *
- *  @type         global
- *
- *  @param[in]    type    Type definition, specifies the output tag
- *  @param[in]    msg     Text string
- *
- *  @return       none
- *
- *  @author       Schmocker Aaron
- *
- ******************************************************************************/
-/* Read incomming can messages from the rx_queue and forwards them according to the queue map */
+/** 
+ * @brief       Read incomming can messages from the rx_queue and forward them to the according message queue
+ * @type        static
+ * @param[in]   void    *pv_data
+ * @return      none
+ **/
 static void ucan_dispatch_data(void *pv_data)
 {
     CARME_CAN_MESSAGE tmp_msg;
@@ -144,7 +123,11 @@ static void ucan_dispatch_data(void *pv_data)
     }
 }
 
-/* setup acceptance filter */
+/** 
+ * @brief       Sets up an acceptance filter, in case there are other systems speaking on the can bus
+ * @type        static
+ * @return      none
+ **/
 static void ucan_setup_acceptance_filter(void)
 {
     CARME_CAN_ACCEPTANCE_FILTER af;
@@ -174,7 +157,14 @@ static void ucan_setup_acceptance_filter(void)
     CARME_CAN_SetMode(CARME_CAN_DF_NORMAL);
 }
 
-/* Set a message mask to map multiple message to a queue*/
+/** 
+ * @brief       Set a message mask to map multiple message to a queue
+ * @type        global
+ * @param[in]   uint16_t        mask
+ * @param[in]   uint16_t        message_id
+ * @param[in]   QueueHandle_t   queue
+ * @return      bool
+ **/
 bool ucan_link_message_to_queue_mask(uint16_t mask, uint16_t message_id, QueueHandle_t queue)
 {
     /* Check if there is enough space left */
@@ -192,13 +182,23 @@ bool ucan_link_message_to_queue_mask(uint16_t mask, uint16_t message_id, QueueHa
 
 }
 
-/* Link a single message type to a queue */
+/** 
+ * @brief       Link a single message type to a queue
+ * @type        global
+ * @param[in]   uint16_t        message_id
+ * @param[in]   QueueHandle_t   queue
+ * @return      bool
+ **/
 bool ucan_link_message_to_queue(uint16_t message_id, QueueHandle_t queue)
 {
     ucan_link_message_to_queue_mask(0x0FFF, message_id, queue);
 }
 
-/* Initialize can hardware */
+/** 
+ * @brief       Initialize the hardware and call each init function
+ * @type        global
+ * @return      none
+ **/
 bool ucan_init(void)
 {
     GPIO_InitTypeDef g;
@@ -243,7 +243,14 @@ bool ucan_init(void)
     return true;
 }
 
-/* Send data to the output message queue */
+/** 
+ * @brief       Send data to the can output message queue
+ * @type        global
+ * @param[in]   uint16_t    message_id
+ * @param[in]   uint8_t     n_data_bytes
+ * @param[in]   uint8_t     *data
+ * @return      bool
+ **/
 bool ucan_send_data(uint8_t n_data_bytes, uint16_t msg_id, const uint8_t *data)
 {
     CARME_CAN_MESSAGE tmp_msg;
