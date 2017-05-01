@@ -4,7 +4,7 @@ Semester project in real time operating systems.
 
 # Documentation
 
-See [Doc Folder](./doc/index.md)
+See [Doxygen Documentation](https://t-moe.github.io/ubor/)
 
 
 # Requirements
