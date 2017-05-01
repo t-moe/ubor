@@ -40,7 +40,7 @@
 #define STACKSIZE_TASK  256 //!< Stack size of all bcs tasks
 #define PRIORITY_TASK   2 //!< Priority of all bcs tasks
 
-#define MAX_BLOCK_COUNT 4 //!< Number of blocks to work with. Must be between 2 and 4
+#define MAX_BLOCK_COUNT 3 //!< Number of blocks to work with. Must be between 2 and 4
 
 // ------------------ Implementation --------------
 
