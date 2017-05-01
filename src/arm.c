@@ -17,6 +17,12 @@
  *
  *****************************************************************************/
 
+/**
+ * @defgroup arm Arm
+ * @brief Module controlling the robot arms
+ */
+/*@{*/
+
 //----- Header-Files -----------------------------------------------------------
 #include <stdio.h>
 
@@ -72,6 +78,9 @@
 #define GRIPPER_MAX 1
 #define GRIPPER_MIN 0
 
+/**
+ * @brief The arm_select enum differenciates between the different arms (left/right)
+ */
 enum arm_select {arm_left=belt_left, //!< the left arm
                  arm_right=belt_right//!< the right arm
                 };
@@ -453,4 +462,6 @@ void manual_arm_movement(void *pvData)
                     robot_msg_buffer_manual.data[5]);
     }
 }
+
+/*@}*/
 
