@@ -15,7 +15,7 @@ RMDIR=rm -rf
 STUTIL=utils/st-util-daemon.sh
 
 #Directories
-DOC_DIR=./doc
+DOC_DIR=./design
 SRC_DIR=./src
 OBJ_DIR=./obj
 BUILD_DIR=./build
