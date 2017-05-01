@@ -8,12 +8,14 @@ OBJCOPY=$(CROSS_COMPILE)objcopy
 GDB=$(CROSS_COMPILE)gdb
 STYLE=astyle --style=1tbs
 
+DOXY=doxygen
 MKDIR=mkdir -p
 RM=rm -f
 RMDIR=rm -rf
 STUTIL=utils/st-util-daemon.sh
 
 #Directories
+DOC_DIR=./doc
 SRC_DIR=./src
 OBJ_DIR=./obj
 BUILD_DIR=./build
@@ -79,9 +81,14 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 #Clean Obj files and builded stuff
 clean:
 	$(RMDIR) $(BUILD_DIR) $(OBJ_DIR)
+	$(RMDIR) $(DOC_DIR)/html
 
 syntax:
 	$(STYLE) $(CFILES)
+
+doxygen:
+	$(DOXY)
+	cp $(DOC_DIR)/*.{jpg,png} $(DOC_DIR)/html
 
 #Debug target: starts the st-util server and gdb and leaves it open
 debug: start all
