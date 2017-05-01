@@ -1,8 +1,26 @@
+/*****************************************************************************
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+ * MA  02110-1301, USA.
+ *
+ *****************************************************************************/
 
 //----- Header-Files -----------------------------------------------------------
-#include <stdio.h>                      /* Standard Input/Output              */
+#include <stdio.h>
 
-#include <FreeRTOS.h>                   /* All freeRTOS headers               */
+#include <FreeRTOS.h>
 #include <task.h>
 #include <queue.h>
 #include <semphr.h>
@@ -70,20 +88,20 @@ CARME_CAN_MESSAGE robot_msg_buffer_right;
 CARME_CAN_MESSAGE robot_msg_buffer_left;
 
 uint8_t status_request[2] = {0x02,0x00};
-//----- Implementation ---------------------------------------------------------
 
+//----- Implementation ---------------------------------------------------------
 
 /**
  * @brief       Controls the airspace in the middle position. This position is
- * 			    protected with a mutex. Before enter the critical area this
- * 			    function takes the mutex.
+ *              protected with a mutex. Before enter the critical area this
+ *              function takes the mutex.
  *
  *  @type       static
  *
  *  @param[in]  none
  *
  *  @return     none
-**/
+ **/
 static void arm_enter_critical_air_space()
 {
     display_log(DISPLAY_NEWLINE, "take semaphore mid");
@@ -92,8 +110,8 @@ static void arm_enter_critical_air_space()
 
 /**
  * @brief       Controls the airspace in the middle position. This position is
- * 			    protected with a mutex. After exit the critical area this
- * 			    function give the mutex.
+ *              protected with a mutex. After exit the critical area this
+ *              function give the mutex.
  *
  *  @type       static
  *
@@ -225,7 +243,7 @@ void move_roboter(void *pvData)
 
 /**
  * @brief       Checks the arm position and waits until the desired position
- * 				is reached.
+ *              is reached.
  *
  *  @type       public
  *
@@ -306,20 +324,17 @@ void init_arm()
                 ARM_TASK_PRIORITY,
                 NULL);
     /*
-        xTaskCreate(manual_arm_movement,
-                    "Manual Arm Movement",
-                    ARM_TASK_STACKSIZE,
-                    NULL,
-                    ARM_TASK_PRIORITY,
-                    NULL);*/
+    xTaskCreate(manual_arm_movement,
+                "Manual Arm Movement",
+                ARM_TASK_STACKSIZE,
+                NULL,
+                ARM_TASK_PRIORITY,
+                NULL);*/
 }
-
-
-
 
 /**
  * @brief       Task to move the roboter with the Buttons. To create this
- * 				task unkomment it in the function init_arm()
+ *              task unkomment it in the function init_arm()
  *
  *  @type       public
  *
@@ -329,16 +344,16 @@ void init_arm()
  **/
 void manual_arm_movement(void *pvData)
 {
-	/*
-	 * Switch 0: select left or right arm
-	 * Switch 1: increment or decrement position value
-	 * Switch 2: gripper open or close
-	 *
-	 * Button 0: change value of basis
-	 * Button 1: change value of shoulder
-	 * Button 2: change value of elbow
-	 * Button 3: change value of hand
-	*/
+    /*
+     * Switch 0: select left or right arm
+     * Switch 1: increment or decrement position value
+     * Switch 2: gripper open or close
+     *
+     * Button 0: change value of basis
+     * Button 1: change value of shoulder
+     * Button 2: change value of elbow
+     * Button 3: change value of hand
+     */
 
     uint8_t button_data;
     uint8_t switch_data;
@@ -373,7 +388,6 @@ void manual_arm_movement(void *pvData)
         } else {
             pos_manuel[5] = GRIPPER_MIN;
         }
-
 
         switch(button_data) {
 
@@ -412,7 +426,6 @@ void manual_arm_movement(void *pvData)
             break;
         }
 
-
         if(left_select == true) {
             ucan_send_data(COMAND_DLC, ROBOT_L_COMAND_REQUEST_ID, pos_manuel);
             vTaskDelay(20);
@@ -434,8 +447,6 @@ void manual_arm_movement(void *pvData)
                     robot_msg_buffer_manual.data[3],
                     robot_msg_buffer_manual.data[4],
                     robot_msg_buffer_manual.data[5]);
-
     }
-
 }
 

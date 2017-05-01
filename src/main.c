@@ -29,7 +29,7 @@
 #include "bcs.h"
 #include "arm.h"
 
-/** 
+/**
  * @brief      Main function which calls the scheduler
  * @return     none
  **/

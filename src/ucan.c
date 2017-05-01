@@ -50,7 +50,7 @@ static SemaphoreHandle_t can_semaphore; //!< Semaphore for can access
 
 /* ----- Functions -----------------------------------------------------------*/
 
-/** 
+/**
  * @brief      Task which handles the printing of data to the message queue.
  * @type       static
  * @param[in]  void     *pv_data    Arguments from xTaskCreate
@@ -70,7 +70,7 @@ static void ucan_write_data(void *pv_data)
     }
 }
 
-/** 
+/**
  * @brief      Task which reads can messages and sends them to the can message
  *             queue
  * @type       static
@@ -94,7 +94,7 @@ static void ucan_read_data(void *pv_data)
     }
 }
 
-/** 
+/**
  * @brief       Read incomming can messages from the rx_queue and forward them to the according message queue
  * @type        static
  * @param[in]   void    *pv_data    Arguments from xTaskCreate
@@ -127,7 +127,7 @@ static void ucan_dispatch_data(void *pv_data)
     }
 }
 
-/** 
+/**
  * @brief       Sets up an acceptance filter, in case there are other systems speaking on the can bus
  * @type        static
  * @return      none
@@ -161,7 +161,7 @@ static void ucan_setup_acceptance_filter(void)
     CARME_CAN_SetMode(CARME_CAN_DF_NORMAL);
 }
 
-/** 
+/**
  * @brief       Set a message mask to map multiple message to a queue
  * @type        global
  * @param[in]   uint16_t        mask            Binary mask for filtering
@@ -186,7 +186,7 @@ bool ucan_link_message_to_queue_mask(uint16_t mask, uint16_t message_id, QueueHa
 
 }
 
-/** 
+/**
  * @brief       Link a single message type to a queue
  * @type        global
  * @param[in]   uint16_t        message_id      Unique integer which serves as id for the queue
@@ -198,7 +198,7 @@ bool ucan_link_message_to_queue(uint16_t message_id, QueueHandle_t queue)
     return ucan_link_message_to_queue_mask(0x0FFF, message_id, queue);
 }
 
-/** 
+/**
  * @brief       Initialize the hardware and call each init function
  * @type        global
  * @return      bool    True if successful
@@ -247,7 +247,7 @@ bool ucan_init(void)
     return true;
 }
 
-/** 
+/**
  * @brief       Send data to the can output message queue
  * @type        global
  * @param[in]   uint16_t    message_id      Unique integer which serves as id for the queue
