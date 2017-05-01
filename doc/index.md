@@ -7,7 +7,9 @@ There are mainly two configuration values:
 * One is in the file `bcs.c`, the define `MAX_BLOCK_COUNT`. Set this to the number of blocks you want to work with (between 2 and 4).
 * The other configuration can happen at runtime. Use the DIP Switch 1, to switch between manaual and automatic direction choosing (for the dispatcher). Use the DIP Switch 2, to select the direction (left or right) in manual mode.
 
-## General Idea
+## Starting of the model
+
+After flashing the firmware to the carme, place `MAX_BLOCK_COUNT` onto the mid belt. One after each other, and always wait until one is moved away, before you place the next block.
 
 ## File & Module & Task Description
 
@@ -31,16 +33,16 @@ The table below describes what functions are called in the steps. Check the acti
 
 | Step Nr | Task  | When | What |
 | ------|----- | -------|---- |
-| 1 | mid belt | Before moving the block | `bcs_await_drop(belt_mid)`  |
-| 2 | mid belt | Before dispatching the block to the right band | `bcs_prepare_drop(belt_right)`  |
-| 3 | mid belt| After dispatching the block to the right band | `bcs_signal_dropped(belt_right)`<br>`bcs_signal_band_free(belt_mid)` |
-| 4 | right belt | Before moving the block |  `bcs_await_drop(belt_right)`  |
-| 5 | right belt | When the block is ready for pickup |  `bcs_prepare_pickup(belt_right)`  |
-| 6 | right arm | Before pickup |  `bcs_grab(belt_right)`<br>`bcs_signal_band_free(belt_right)`  |
-| 7 | right arm | Before entering critial air zone|  `arm_enter_critical_air_space()`  |
-| 8 | right arm | Before dropping block onto belt |  `bcs_prepare_drop(belt_mid)`  |
-| 9 | right arm | After dropping block onto belt |  `bcs_signal_dropped(belt_mid)`  |
-| 10 | right arm | After leaving the critical air zone |  `arm_leave_critical_air_space()`  |
+| 1 | `mid` (belt) | Before moving the block | `bcs_await_drop(belt_mid)`  |
+| 2 | `mid` (belt) | Before dispatching the block to the right band | `bcs_prepare_drop(belt_right)`  |
+| 3 | `mid` (belt) | After dispatching the block to the right band | `bcs_signal_dropped(belt_right)`<br>`bcs_signal_band_free(belt_mid)` |
+| 4 | `right` (belt) | Before moving the block |  `bcs_await_drop(belt_right)`  |
+| 5 | `right` (belt) | When the block is ready for pickup |  `bcs_prepare_pickup(belt_right)`  |
+| 6 | `Arm Right` | Before pickup |  `bcs_grab(belt_right)`<br>`bcs_signal_band_free(belt_right)`  |
+| 7 | `Arm Right` | Before entering critial air zone|  `arm_enter_critical_air_space()`  |
+| 8 | `Arm Right` | Before dropping block onto belt |  `bcs_prepare_drop(belt_mid)`  |
+| 9 | `Arm Right` | After dropping block onto belt |  `bcs_signal_dropped(belt_mid)`  |
+| 10 | `Arm Right` | After leaving the critical air zone |  `arm_leave_critical_air_space()`  |
 
 
 ## Activity Diagramm
